@@ -12,7 +12,7 @@ Everything runs locally on the device. No account and no backend.
 
 ## Status
 
-Design only, no code yet. The full spec is in [design spec](docs/superpowers/specs/2026-10-12-flexy-day-design.md).
+Design only, no code yet. The full spec is in [design spec](docs/superpowers/specs/2026-10-12-flexy-day-design.md). Progress: [progress.md](docs/superpowers/progress.md).
 
 ## Stack
 

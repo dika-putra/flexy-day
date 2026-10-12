@@ -34,7 +34,7 @@ Local storage with `drift` (SQLite). Settings in `SharedPreferences`.
 
 - `DayLog(date PK, status, note, rescheduledTo?)`. `status` is `office | leave | sick | rescheduled`. One row per date, so amend is an update.
 - `Holiday(date PK, name, source)`. `source` is `bundled` or `user`.
-- Settings: `mode`, `fixedWeekdays`, `quota`, `quotaPeriod`, `buffer` (default 2), `reminderTime` (default 20:00, evening before), `blockingTime` (default 08:00).
+- Settings: `mode`, `fixedWeekdays`, `quota`, `quotaPeriod`, `buffer` (default 2), `reminderTime` (default 20:00, evening before), `blockingTime` (default 08:00), `trackingSince` (date of first launch; "unanswered" days are counted from here, so nothing before it shows as missing).
 
 There is no separate plan table. Effective office days in fixed mode are computed: the fixed weekday pattern, plus dates that are the target of a reschedule, minus dates that were moved out. Amending a `rescheduled` row to another status removes its target automatically.
 

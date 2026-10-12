@@ -2,7 +2,7 @@
 
 Single place to see where the project stands. Update this file in the same commit as the work it describes. Step-level checkboxes live in each plan file.
 
-Last updated: 2026-10-12 (plan revised for theme, i18n, new components)
+Last updated: 2026-10-12 (checkpoint A done: tasks 1 to 5)
 
 ## Milestones
 
@@ -17,11 +17,11 @@ Status values: Not planned, Not started, In progress, Blocked, Done.
 
 ## Milestone 1 tasks
 
-- [ ] 1. Scaffold project, dependencies, l10n config, font
-- [ ] 2. Domain models and date helpers
-- [ ] 3. Schedule logic (office days, reschedule, unanswered)
-- [ ] 4. Monthly summary
-- [ ] 5. Quota status
+- [x] 1. Scaffold project, dependencies, l10n config, font
+- [x] 2. Domain models and date helpers
+- [x] 3. Schedule logic (office days, reschedule, unanswered)
+- [x] 4. Monthly summary
+- [x] 5. Quota status
 - [ ] 6. Database and log repository
 - [ ] 7. Holiday repository and seed
 - [ ] 8. Settings repository (includes language)
@@ -53,9 +53,11 @@ Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 
 
 - Application id `com.dienn.flexyday`: confirmed by the user on 2026-10-12. Dart package name is `flexyday`. Cannot change after release.
 - Play Store name availability for "Flexy Day": the user says they checked, not recorded here.
-- Flutter version: not chosen yet. FVM has 3.24.5 and 3.47.0 (needs setup, which downloads SDK artifacts: the user has not yet approved). Package versions: not chosen yet. Record the resolved versions here after milestone 1 Task 1.
-- Plus Jakarta Sans files: the download needs the user's permission (name, source, size). License and exact source unverified until opened.
-- Phosphor icon names in `lib/ui/icons.dart` are from memory and unverified. The l10n output location (`lib/l10n` vs synthetic package) depends on the resolved Flutter version.
+- Resolved on 2026-10-12: Flutter 3.47.0 (Dart 3.13.0), pinned with FVM (`.fvmrc`). `flutter_riverpod` ^3.4.3, `drift` ^2.35.2, `drift_flutter` ^0.3.1, `shared_preferences` ^2.5.6, `intl` ^0.20.3, `phosphor_flutter` ^2.1.0, dev: `drift_dev` ^2.35.1, `build_runner` ^2.16.2.
+- `sqlite3_flutter_libs` resolves to `0.6.0+eol` (pulled in by `drift_flutter`). The `+eol` suffix suggests the package is end of life. Unverified what replaces it. Check when touching the database layer (Task 6) and before release.
+- Riverpod is 3.x, not 2.x. The plan code was written without checking 3.x API differences. Verify in Task 10.
+- Font: only a variable font exists in google/fonts (`PlusJakartaSans[wght].ttf`, 176 KB, OFL 1.1, downloaded 2026-10-12 into `assets/fonts/`). Whether Flutter maps `FontWeight` to the `wght` axis automatically is unverified. Check in Task 15; if not, use `fontVariations`.
+- Phosphor icon names in `lib/ui/icons.dart` are from memory and unverified. The l10n output went to `lib/l10n/` (non-synthetic) with Flutter 3.47.0, as the plan assumes.
 - Holiday data: `assets/holidays/holidays.json` is an empty array. It needs real national holidays and collective leave from the official decree, current and next year.
 - Notification reboot behavior, exact alarm permission, and Android 14+ full-screen intent limits: unverified. Check in milestone 2 against the pinned plugin version.
 - Generated drift files (`*.g.dart`) are not committed. After a fresh clone run `fvm dart run build_runner build --delete-conflicting-outputs`.
@@ -67,4 +69,4 @@ Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 
 
 ## Log
 
-- 2026-10-12: Spec written, repo made public, milestone 1 plan written, then revised for design direction and two languages (now 15 tasks). Branch `milestone-1` created, no code yet.
+- 2026-10-12: Spec written, repo made public, milestone 1 plan written, then revised for design direction and two languages (now 15 tasks). Branch `milestone-1` created. Checkpoint A done: scaffold, domain logic, 29 unit tests passing.

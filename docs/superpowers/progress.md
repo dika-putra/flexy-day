@@ -44,7 +44,7 @@ Status values: Not planned, Not started, In progress, Blocked, Done.
 
 ## Open items (verify before relying on them)
 
-- Application id `com.dikaputra.flexy_day`: proposed, needs the user's confirmation before milestone 1 Task 1. Cannot change after release.
+- Application id `com.dienn.flexyday`: confirmed by the user on 2026-10-12. Dart package name is `flexyday`. Cannot change after release.
 - Play Store name availability for "Flexy Day": the user says they checked, not recorded here.
 - Flutter and package versions: not chosen yet. Record the resolved versions here after milestone 1 Task 1.
 - Holiday data: `assets/holidays/holidays.json` is an empty array. It needs real national holidays and collective leave from the official decree, current and next year.

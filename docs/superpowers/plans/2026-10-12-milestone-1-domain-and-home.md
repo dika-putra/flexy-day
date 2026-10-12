@@ -20,7 +20,7 @@
 - Holidays come from a bundled JSON asset. The asset in this milestone is an empty array. Real data must be built from the official government decree and is not invented here.
 - `domain/` has no Flutter imports.
 - The Flutter toolchain is managed with FVM. Use `fvm flutter` and `fvm dart`. `flutter` is not on PATH.
-- Application id is `com.dikaputra.flexy_day`. This is a proposal and cannot change after release. **Confirm with the user before Task 1.**
+- Application id is `com.dienn.flexyday` (confirmed by the user, 2026-10-12). It cannot change after release. The Dart package name is `flexyday`, so imports are `package:flexyday/...`.
 - Commits: English, short imperative subject, no AI attribution lines, local git identity of this repo.
 - Do not add a dependency for something a few lines can do.
 
@@ -65,11 +65,11 @@ test/data/*.dart
 - Delete: `test/widget_test.dart`
 
 **Interfaces:**
-- Produces: a compiling Android project, package name `flexy_day`, dependencies installed.
+- Produces: a compiling Android project, package name `flexyday`, dependencies installed.
 
-- [ ] **Step 1: Confirm the application id with the user**
+- [x] **Step 1: Application id confirmed**
 
-Ask: "Application id `com.dikaputra.flexy_day` OK? It cannot change after release." Stop until answered. Use the confirmed org in the next step.
+Application id `com.dienn.flexyday` is confirmed by the user. Do not change it.
 
 - [ ] **Step 2: Pick and pin a Flutter version**
 
@@ -91,7 +91,7 @@ Expected: prints Flutter and Dart versions. Write both into `docs/superpowers/pr
 - [ ] **Step 3: Create the project in the repo root**
 
 ```bash
-fvm flutter create --platforms=android --org com.dikaputra --project-name flexy_day .
+fvm flutter create --platforms=android --org com.dienn --project-name flexyday .
 git status --short
 ```
 
@@ -167,7 +167,7 @@ git commit -m "Scaffold Flutter project with core dependencies"
 `test/helpers.dart`:
 
 ```dart
-import 'package:flexy_day/domain/dates.dart';
+import 'package:flexyday/domain/dates.dart';
 
 DateTime date(String key) => parseDateKey(key);
 ```
@@ -175,7 +175,7 @@ DateTime date(String key) => parseDateKey(key);
 `test/domain/dates_test.dart`:
 
 ```dart
-import 'package:flexy_day/domain/dates.dart';
+import 'package:flexyday/domain/dates.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -351,8 +351,8 @@ git commit -m "Add domain models and date helpers"
 `test/domain/schedule_test.dart`:
 
 ```dart
-import 'package:flexy_day/domain/models.dart';
-import 'package:flexy_day/domain/schedule.dart';
+import 'package:flexyday/domain/models.dart';
+import 'package:flexyday/domain/schedule.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -534,8 +534,8 @@ Rules: only non-holiday weekdays are counted. Logs on weekends or holidays are i
 `test/domain/summary_test.dart`:
 
 ```dart
-import 'package:flexy_day/domain/models.dart';
-import 'package:flexy_day/domain/summary.dart';
+import 'package:flexyday/domain/models.dart';
+import 'package:flexyday/domain/summary.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -678,8 +678,8 @@ Rules: window is the current week (Mon to Sun) or calendar month. `done` counts 
 `test/domain/quota_test.dart`:
 
 ```dart
-import 'package:flexy_day/domain/models.dart';
-import 'package:flexy_day/domain/quota.dart';
+import 'package:flexyday/domain/models.dart';
+import 'package:flexyday/domain/quota.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -915,9 +915,9 @@ Expected: `lib/data/database.g.dart` created, no errors.
 
 ```dart
 import 'package:drift/native.dart';
-import 'package:flexy_day/data/database.dart';
-import 'package:flexy_day/data/log_repository.dart';
-import 'package:flexy_day/domain/models.dart';
+import 'package:flexyday/data/database.dart';
+import 'package:flexyday/data/log_repository.dart';
+import 'package:flexyday/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -1036,8 +1036,8 @@ git commit -m "Add drift database and day log repository"
 ```dart
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:flexy_day/data/database.dart';
-import 'package:flexy_day/data/holiday_repository.dart';
+import 'package:flexyday/data/database.dart';
+import 'package:flexyday/data/holiday_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -1151,8 +1151,8 @@ git commit -m "Add holiday repository with bundled seed"
 `test/data/settings_repository_test.dart`:
 
 ```dart
-import 'package:flexy_day/data/settings_repository.dart';
-import 'package:flexy_day/domain/models.dart';
+import 'package:flexyday/data/settings_repository.dart';
+import 'package:flexyday/domain/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

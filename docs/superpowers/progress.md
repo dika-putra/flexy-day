@@ -2,7 +2,7 @@
 
 Single place to see where the project stands. Update this file in the same commit as the work it describes. Step-level checkboxes live in each plan file.
 
-Last updated: 2026-10-12 (checkpoint B done: tasks 1 to 8)
+Last updated: 2026-10-12 (checkpoint C done: tasks 1 to 14; task 15 blocked on Android SDK)
 
 ## Milestones
 
@@ -25,12 +25,12 @@ Status values: Not planned, Not started, In progress, Blocked, Done.
 - [x] 6. Database and log repository
 - [x] 7. Holiday repository and seed
 - [x] 8. Settings repository (includes language)
-- [ ] 9. Strings (en, id) and theme
-- [ ] 10. Providers and app bootstrap
-- [ ] 11. Shared UI pieces (icons, formatting, widgets)
-- [ ] 12. Answer panel and sheet
-- [ ] 13. Home screen
-- [ ] 14. Calendar, temporary settings screen, shell
+- [x] 9. Strings (en, id) and theme
+- [x] 10. Providers and app bootstrap
+- [x] 11. Shared UI pieces (icons, formatting, widgets)
+- [x] 12. Answer panel and sheet
+- [x] 13. Home screen
+- [x] 14. Calendar, temporary settings screen, shell
 - [ ] 15. Manual verification on emulator and wrap-up
 
 Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 9 to 14, D = task 15 (needs the user at the emulator).
@@ -55,12 +55,18 @@ Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 
 - Play Store name availability for "Flexy Day": the user says they checked, not recorded here.
 - Resolved on 2026-10-12: Flutter 3.47.0 (Dart 3.13.0), pinned with FVM (`.fvmrc`). `flutter_riverpod` ^3.4.3, `drift` ^2.35.2, `drift_flutter` ^0.3.1, `shared_preferences` ^2.5.6, `intl` ^0.20.3, `phosphor_flutter` ^2.1.0, dev: `drift_dev` ^2.35.1, `build_runner` ^2.16.2.
 - `sqlite3_flutter_libs` resolves to `0.6.0+eol`: checked in its CHANGELOG (2026-10-12). It is an intentionally empty stub because `sqlite3` 3.x bundles SQLite through build hooks. No action needed.
-- Riverpod is 3.x, not 2.x. The plan code was written without checking 3.x API differences. Verify in Task 10.
+- Riverpod 3.x: verified with a provider smoke test and widget tests (2026-10-12). No API problems found.
 - Font: only a variable font exists in google/fonts (`PlusJakartaSans[wght].ttf`, 176 KB, OFL 1.1, downloaded 2026-10-12 into `assets/fonts/`). Whether Flutter maps `FontWeight` to the `wght` axis automatically is unverified. Check in Task 15; if not, use `fontVariations`.
-- Phosphor icon names in `lib/ui/icons.dart` are from memory and unverified. The l10n output went to `lib/l10n/` (non-synthetic) with Flutter 3.47.0, as the plan assumes.
+- Icons: the original `phosphor_flutter` 2.1.0 (May 2024, latest) does not compile on Flutter 3.47.0 (`IconData` is a final class). `flutter analyze` did not flag it, a test compile did. Replaced with `phosphoricons_flutter` 1.1.1 (community package, MIT, only imports `flutter/widgets`, same class names). Small third-party package: review again before release. Names in `lib/ui/icons.dart` verified by compiling.
 - Holiday data: `assets/holidays/holidays.json` is an empty array. It needs real national holidays and collective leave from the official decree, current and next year.
 - Notification reboot behavior, exact alarm permission, and Android 14+ full-screen intent limits: unverified. Check in milestone 2 against the pinned plugin version.
 - Generated drift files (`*.g.dart`) are not committed. After a fresh clone run `fvm dart run build_runner build --delete-conflicting-outputs`.
+
+## Blockers
+
+- Android SDK is not installed. `~/Library/Android/sdk` exists but has no platform-tools, build-tools, platforms, or emulator. `flutter doctor` reports "Unable to locate Android SDK". Needed for milestone 1 Task 15, for `flutter build apk`, and for any emulator. Install the SDK and create an emulator in Android Studio (Device Manager). Downloads several GB.
+- `ANDROID_HOME` is set in `~/.zshrc` but not loaded in the shell Claude uses. Pass it per command.
+- Not yet compiled for Android at all: only `flutter test` and `flutter analyze` ran. A real `flutter build apk --debug` has not been done.
 
 ## Environment
 
@@ -69,4 +75,4 @@ Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 
 
 ## Log
 
-- 2026-10-12: Spec written, repo made public, milestone 1 plan written, then revised for design direction and two languages (now 15 tasks). Branch `milestone-1` created. Checkpoint A done: scaffold, domain logic. Checkpoint B done: database, repositories, settings. 38 tests passing.
+- 2026-10-12: Spec written, repo made public, milestone 1 plan written, then revised for design direction and two languages (now 15 tasks). Branch `milestone-1` created. Checkpoint A done: scaffold, domain logic. Checkpoint B done: database, repositories, settings. Checkpoint C done: strings, theme, providers, UI, 48 tests passing. Task 15 (emulator) blocked: Android SDK not installed.

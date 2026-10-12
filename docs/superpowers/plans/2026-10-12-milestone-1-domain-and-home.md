@@ -1469,11 +1469,11 @@ import 'app_localizations.dart';
 export 'app_localizations.dart';
 
 extension L10nContext on BuildContext {
-  AppLocalizations get l10n => AppLocalizations.of(context);
+  AppLocalizations get l10n => AppLocalizations.of(this)!;
 }
 ```
 
-If `AppLocalizations.of(context)` returns a nullable in the resolved version, use `AppLocalizations.of(context)!`.
+With Flutter 3.47.0, `AppLocalizations.of` returns a nullable, hence the `!`. Inside an extension on `BuildContext`, pass `this`, not `context`.
 
 - [ ] **Step 4: Write the parity test**
 

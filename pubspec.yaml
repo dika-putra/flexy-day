@@ -39,9 +39,9 @@ dependencies:
   drift_flutter: ^0.3.1
   shared_preferences: ^2.5.6
   intl: ^0.20.3
-  phosphor_flutter: ^2.1.0
   flutter_localizations:
     sdk: flutter
+  phosphoricons_flutter: ^1.1.1
 
 dev_dependencies:
   flutter_test:

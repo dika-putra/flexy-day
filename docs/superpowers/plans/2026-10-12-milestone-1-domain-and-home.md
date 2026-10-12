@@ -6,7 +6,7 @@
 
 **Architecture:** Pure Dart `domain/` (models and functions, no Flutter imports) feeds Riverpod providers. `data/` holds the `drift` database and repositories. `ui/` reads one derived context (`Ctx`) and renders it with a custom (non-Material-looking) theme and components. All user-visible text comes from ARB files. Notifications arrive in milestone 2, so nothing here depends on them.
 
-**Tech Stack:** Flutter (Android only), Dart, `flutter_riverpod`, `drift` + `drift_flutter` + `drift_dev` + `build_runner`, `shared_preferences`, `intl` + `flutter_localizations` (gen-l10n), `phosphor_flutter`, bundled Plus Jakarta Sans font. Versions are resolved by `fvm flutter pub add` in Task 1 and recorded in `docs/superpowers/progress.md`. Do not hand-write version numbers.
+**Tech Stack:** Flutter (Android only), Dart, `flutter_riverpod`, `drift` + `drift_flutter` + `drift_dev` + `build_runner`, `shared_preferences`, `intl` + `flutter_localizations` (gen-l10n), `phosphoricons_flutter` (the original `phosphor_flutter` 2.1.0 does not compile on Flutter 3.47.0 because `IconData` is a final class), bundled Plus Jakarta Sans font. Versions are resolved by `fvm flutter pub add` in Task 1 and recorded in `docs/superpowers/progress.md`. Do not hand-write version numbers.
 
 **Spec:** `docs/superpowers/specs/2026-10-12-flexy-day-design.md`
 
@@ -112,7 +112,7 @@ If `README.md` shows as modified, restore it: `git checkout README.md`.
 - [ ] **Step 4: Add dependencies**
 
 ```bash
-fvm flutter pub add flutter_riverpod drift drift_flutter shared_preferences intl phosphor_flutter
+fvm flutter pub add flutter_riverpod drift drift_flutter shared_preferences intl phosphoricons_flutter
 fvm flutter pub add flutter_localizations --sdk=flutter
 fvm flutter pub add dev:drift_dev dev:build_runner
 ```
@@ -1834,7 +1834,7 @@ Expected: `No issues found!` and all tests pass.
 `lib/ui/icons.dart`:
 
 ```dart
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
 abstract final class AppIcons {
   static const home = PhosphorIconsRegular.house;
@@ -1854,7 +1854,7 @@ abstract final class AppIcons {
 }
 ```
 
-Run `fvm flutter analyze`. These names are from memory and unverified. If one does not exist in the resolved `phosphor_flutter`, fix it here only, using the package docs. Do not change call sites.
+Run `fvm flutter analyze`. Names were checked against `phosphoricons_flutter` 1.1.1 by compiling. If one ever disappears, fix it here only. Do not change call sites.
 
 - [ ] **Step 2: Formatting with intl**
 

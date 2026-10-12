@@ -1,4 +1,4 @@
-# Flexy Day
+# Flexy Day Design Spec
 
 Android app (Flutter) to plan and track office days (WFO) for hybrid and full-WFO workers. It reminds the user the night before, forces an answer on the day via a persistent notification and a blocking screen, and summarizes attendance per month.
 

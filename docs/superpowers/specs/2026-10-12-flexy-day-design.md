@@ -34,7 +34,7 @@ Local storage with `drift` (SQLite). Settings in `SharedPreferences`.
 
 - `DayLog(date PK, status, note, rescheduledTo?)`. `status` is `office | leave | sick | rescheduled`. One row per date, so amend is an update.
 - `Holiday(date PK, name, source)`. `source` is `bundled` or `user`.
-- Settings: `mode`, `fixedWeekdays`, `quota`, `quotaPeriod`, `buffer` (default 2), `reminderTime` (default 20:00, evening before), `blockingTime` (default 08:00), `trackingSince` (date of first launch; "unanswered" days are counted from here, so nothing before it shows as missing).
+- Settings: `mode`, `fixedWeekdays`, `quota`, `quotaPeriod`, `buffer` (default 2), `reminderTime` (default 20:00, evening before), `blockingTime` (default 08:00), `trackingSince` (date of first launch; "unanswered" days are counted from here, so nothing before it shows as missing), `language` (`system | id | en`, default `system`).
 
 There is no separate plan table. Effective office days in fixed mode are computed: the fixed weekday pattern, plus dates that are the target of a reschedule, minus dates that were moved out. Amending a `rescheduled` row to another status removes its target automatically.
 
@@ -74,8 +74,9 @@ All local. No server.
 
 An in-app gate, not an OS lock. If today needs an answer, is unanswered, and the time is past `blockingTime`, every app open or resume goes to this screen. It cannot be dismissed with back. Tapping the morning notification opens it too.
 
+- Layout: a full-screen color wash, a large question, and answer tiles. Same answer panel as Home. In fixed mode, choosing Reschedule shows a strip of selectable target dates (future non-holiday weekdays). The notification itself has no answer buttons; answering happens only on this screen.
 - Fixed mode, office day: date, then Went to the office / Reschedule (pick target date) / Day off / Sick, with a note field.
-- Quota mode: progress ("attended 4 of 12, 8 left") and the color badge, then Went to the office / Day off / Sick, with a note field.
+- Quota mode: progress ("attended 4 of 12, 8 left") and the status, then Went to the office / Day off / Sick, with a note field. The wash follows the quota status: violet when green, amber when yellow (dark text), red when red.
 - Fixed mode on a non-office day: no blocking.
 
 Unanswered past days do not block. They show as "unanswered" in the calendar and as a banner on Home ("N days not filled"). The user can fill them any time.
@@ -83,10 +84,25 @@ Unanswered past days do not block. They show as "unanswered" in the calendar and
 ## Screens
 
 1. Onboarding (once): mode, days or quota and period, permissions, default times.
-2. Home: today card, unanswered banner, quota badge (quota mode) or next office day (fixed mode), this month summary (office, leave, sick, percent).
+2. Home: large weekday header and a hero card (violet with inline answer tiles when unanswered; status-colored summary with "Change answer" once answered), unanswered banner, quota card (quota mode) or next office day (fixed mode), and a bento summary (attendance percent plus office, leave, sick).
 3. Calendar and history: one month, status colors, holidays marked, tap a day to amend or fill.
-4. Settings: mode, days or quota and period, buffer, reminder and blocking times, manage holidays.
+4. Settings: language, mode, days or quota and period, buffer, reminder and blocking times, manage holidays.
 5. Blocking screen: route outside the main navigation.
+
+## Languages
+
+English and Indonesian. All user-visible text lives in ARB files (`app_en.arb` template, `app_id.arb`) through Flutter's gen-l10n; no string is written inside a widget. Month and weekday names come from `intl`. Language is a setting: `system` follows the device (English when the device language is neither), or the user picks Indonesia or English. Notification text (milestone 2) uses the same strings through a lookup by the chosen locale. The holiday seed JSON may later carry an optional `nameEn` next to `name`, falling back to `name`.
+
+## Visual design
+
+Simple, elegant, young. Not Material-looking.
+
+- Colors: primary `#6E56F8` (dark mode `#9A87FF`), background `#F7F6FB` (dark `#121120`), cards white (dark `#1C1B2E`), ink `#1B1A2E` (dark `#F2F1FA`). Status fills are pastel with darker text: office mint, day off sky blue, sick rose, moved sand. Quota levels: green `#1FB57A`, yellow `#F5B301`, red `#F0476A`.
+- Shape: radius 20 to 24 on cards, 12 to 16 on buttons and chips, no heavy shadows, no divider lines.
+- Font: Plus Jakarta Sans, weights 400, 600, 800, bundled.
+- Icons: Phosphor, regular for inactive and fill for active.
+- Layout: no AppBar and no Material NavigationBar. A floating pill nav with Home, Calendar, Settings. Calendar days are circles. Casual copy ("Ngantor hari ini?").
+- Built from core Flutter widgets, no UI component package.
 
 ## Code structure
 
@@ -95,7 +111,8 @@ Feature-first, three layers.
 - `domain/`: models and the pure functions above.
 - `data/`: `drift` tables, repositories, holiday seed from asset.
 - `notifications/`: the rolling-window scheduler. Only this layer touches the notification plugin.
-- `ui/`: screens. State with Riverpod. The blocking gate is a `redirect` in `go_router`.
+- `l10n/`: ARB files and the generated localizations.
+- `ui/`: screens, theme, shared widgets. State with Riverpod. The blocking gate is a `redirect` in `go_router`.
 
 Core dependencies: `drift`, `flutter_local_notifications`, `timezone`, `flutter_riverpod`, `go_router`, `shared_preferences`. Pin versions at setup time and check them first. Do not add a dependency for something a few lines can do.
 

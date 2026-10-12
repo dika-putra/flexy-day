@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A working Android app with the pure domain logic (unit tested), local database, Home screen, calendar, and amend flow. No notifications and no blocking screen yet.
+**Goal:** A working Android app with the pure domain logic (unit tested), local database, themed Home screen, calendar, amend flow, and English and Indonesian strings. No notifications and no blocking screen yet.
 
-**Architecture:** Pure Dart `domain/` (models and functions, no Flutter imports) feeds Riverpod providers. `data/` holds the `drift` database and repositories. `ui/` reads one derived context (`Ctx`) and renders it. Notifications arrive in milestone 2, so nothing here depends on them.
+**Architecture:** Pure Dart `domain/` (models and functions, no Flutter imports) feeds Riverpod providers. `data/` holds the `drift` database and repositories. `ui/` reads one derived context (`Ctx`) and renders it with a custom (non-Material-looking) theme and components. All user-visible text comes from ARB files. Notifications arrive in milestone 2, so nothing here depends on them.
 
-**Tech Stack:** Flutter (Android only), Dart, `flutter_riverpod`, `drift` + `drift_flutter` + `drift_dev` + `build_runner`, `shared_preferences`. Versions are resolved by `fvm flutter pub add` in Task 1 and recorded in `docs/superpowers/progress.md`. Do not hand-write version numbers.
+**Tech Stack:** Flutter (Android only), Dart, `flutter_riverpod`, `drift` + `drift_flutter` + `drift_dev` + `build_runner`, `shared_preferences`, `intl` + `flutter_localizations` (gen-l10n), `phosphor_flutter`, bundled Plus Jakarta Sans font. Versions are resolved by `fvm flutter pub add` in Task 1 and recorded in `docs/superpowers/progress.md`. Do not hand-write version numbers.
 
 **Spec:** `docs/superpowers/specs/2026-10-12-flexy-day-design.md`
 
@@ -23,6 +23,12 @@
 - Application id is `com.dienn.flexyday` (confirmed by the user, 2026-10-12). It cannot change after release. The Dart package name is `flexyday`, so imports are `package:flexyday/...`.
 - Commits: English, short imperative subject, no AI attribution lines, local git identity of this repo.
 - Do not add a dependency for something a few lines can do.
+- Languages: English and Indonesian, via `flutter_localizations`, `intl`, and ARB files (`lib/l10n/app_en.arb` is the template, `app_id.arb`). No user-visible string is written inside a widget. Language is a setting: `system` (follow device, English if the device language is neither), `id`, or `en`.
+- Visual design (agreed with the user from the mockups): primary `#6E56F8` (dark `#9A87FF`), background `#F7F6FB` (dark `#121120`), pastel status fills with darker text, radius 20 to 24 on cards, no AppBar and no Material NavigationBar. Navigation is a floating pill. Home uses a hero card and a bento summary. The calendar uses circles.
+- Status colors: office mint, day off sky blue, sick rose, moved sand. Quota levels: green `#1FB57A`, yellow `#F5B301`, red `#F0476A`.
+- Font: Plus Jakarta Sans, weights 400, 600, 800, bundled as assets (no runtime download).
+- Icons: Phosphor, referenced only through `lib/ui/icons.dart`.
+- UI is built from core Flutter widgets. Do not add a UI component package.
 
 ---
 
@@ -31,8 +37,8 @@
 ```
 lib/
   main.dart                        bootstrap: prefs, seed holidays, ProviderScope
-  app/app.dart                     MaterialApp
-  app/providers.dart               clock, db, repositories, Settings notifier, Ctx
+  app/app.dart                     MaterialApp, locale, themes
+  app/providers.dart               clock, db, repositories, Settings notifier, locale, Ctx
   domain/dates.dart                date-only helpers, week/month bounds
   domain/models.dart               enums, DayLog, Settings
   domain/schedule.dart             isOfficeDay, needsAnswer, canRescheduleTo, unansweredDates
@@ -42,17 +48,23 @@ lib/
   data/log_repository.dart
   data/holiday_repository.dart
   data/settings_repository.dart
-  ui/format.dart                   Indonesian date and status labels
-  ui/quota_badge.dart
-  ui/answer_sheet.dart             shared by Home and Calendar (answer and amend)
+  l10n/app_en.arb, app_id.arb      all user-visible strings
+  l10n/l10n.dart                   context.l10n
+  ui/theme.dart                    AppColors extension, buildTheme
+  ui/icons.dart                    Phosphor icon names in one place
+  ui/format.dart                   intl date formatting, status text
+  ui/widgets.dart                  FloatingNav, StatTile, QuotaProgress, color helpers
+  ui/answer_panel.dart             answer tiles, note, reschedule strip, answer sheet
   ui/home_screen.dart
   ui/calendar_screen.dart
-  ui/shell.dart                    bottom navigation
-  ui/dev_settings_sheet.dart       temporary, replaced by Settings in milestone 3
+  ui/settings_screen.dart          temporary, replaced in milestone 3
+  ui/shell.dart                    stack with floating nav
 assets/holidays/holidays.json      []
+assets/fonts/                      Plus Jakarta Sans TTFs
 test/helpers.dart
 test/domain/*.dart
 test/data/*.dart
+test/l10n/arb_parity_test.dart
 ```
 
 ---
@@ -75,7 +87,7 @@ Application id `com.dienn.flexyday` is confirmed by the user. Do not change it.
 
 ```bash
 cd ~/Documents/Projects/flexy-day
-git checkout -b milestone-1
+git branch --show-current   # expected: milestone-1 (already created; create it with git checkout -b milestone-1 if not)
 fvm list
 ```
 
@@ -86,7 +98,7 @@ fvm use stable --force
 fvm flutter --version
 ```
 
-Expected: prints Flutter and Dart versions. Write both into `docs/superpowers/progress.md` later (Task 13).
+Expected: prints Flutter and Dart versions. Write both into `docs/superpowers/progress.md` later (Task 15).
 
 - [ ] **Step 3: Create the project in the repo root**
 
@@ -100,19 +112,56 @@ If `README.md` shows as modified, restore it: `git checkout README.md`.
 - [ ] **Step 4: Add dependencies**
 
 ```bash
-fvm flutter pub add flutter_riverpod drift drift_flutter shared_preferences
+fvm flutter pub add flutter_riverpod drift drift_flutter shared_preferences intl phosphor_flutter
+fvm flutter pub add flutter_localizations --sdk=flutter
 fvm flutter pub add dev:drift_dev dev:build_runner
 ```
 
-Expected: `pubspec.yaml` lists them. If the resolver fails on SDK constraints, use a newer Flutter via `fvm`, do not hand-pin old versions.
+Expected: `pubspec.yaml` lists them. If the resolver fails on SDK constraints, use a newer Flutter via `fvm`, do not hand-pin old versions. Record the resolved versions in `progress.md` later.
 
-- [ ] **Step 5: Declare the holiday asset and ignore generated files**
+- [ ] **Step 5: Plus Jakarta Sans font files (needs the user's permission to download)**
 
-In `pubspec.yaml`, under the `flutter:` section, add:
+Before downloading, tell the user: file names (static TTFs for weights 400, 600, 800, plus the OFL license text), source (the Plus Jakarta Sans page on Google Fonts), and the size. Wait for a yes. Put the files in `assets/fonts/`. Source URL, exact file names, size, and license are unverified until opened. If only a variable font is offered, use it and declare the three weights against it.
+
+- [ ] **Step 6: Declare assets, font, l10n and ignore generated files**
+
+In `pubspec.yaml`, under the `flutter:` section, add (use the real file names from Step 5):
 
 ```yaml
+  generate: true
   assets:
     - assets/holidays/holidays.json
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-ExtraBold.ttf
+          weight: 800
+```
+
+Create `l10n.yaml` in the repo root:
+
+```yaml
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+```
+
+Create stub ARB files so generation works until Task 9 fills them in:
+
+`lib/l10n/app_en.arb`:
+
+```json
+{ "@@locale": "en", "appName": "Flexy Day" }
+```
+
+`lib/l10n/app_id.arb`:
+
+```json
+{ "@@locale": "id", "appName": "Flexy Day" }
 ```
 
 Create `assets/holidays/holidays.json` with exactly:
@@ -127,7 +176,7 @@ Append to `.gitignore`:
 *.g.dart
 ```
 
-- [ ] **Step 6: Remove the default widget test and verify**
+- [ ] **Step 7: Remove the default widget test and verify**
 
 ```bash
 git rm -q test/widget_test.dart
@@ -137,7 +186,7 @@ fvm flutter analyze
 
 Expected: `No issues found!`
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add -A
@@ -157,9 +206,9 @@ git commit -m "Scaffold Flutter project with core dependencies"
   - `DateTime dateOnly(DateTime)`, `bool isWeekday(DateTime)`, `String dateKey(DateTime)`, `DateTime parseDateKey(String)`
   - `Iterable<DateTime> daysInRange(DateTime from, DateTime to)` (inclusive)
   - `DateTime weekStart(DateTime)` (Monday), `weekEnd(DateTime)` (Sunday), `monthStart(DateTime)`, `monthEnd(DateTime)`
-  - `enum DayStatus { office, leave, sick, rescheduled }`, `enum WorkMode { fixed, quota }`, `enum QuotaPeriod { week, month }`, `enum QuotaLevel { green, yellow, red }`
+  - `enum DayStatus { office, leave, sick, rescheduled }`, `enum WorkMode { fixed, quota }`, `enum QuotaPeriod { week, month }`, `enum QuotaLevel { green, yellow, red }`, `enum AppLanguage { system, id, en }`
   - `class DayLog { date, status, note?, rescheduledTo? }`
-  - `class Settings { mode, fixedWeekdays, quota, quotaPeriod, buffer, trackingSince; copyWith(...) }`
+  - `class Settings { mode, fixedWeekdays, quota, quotaPeriod, buffer, trackingSince, language; copyWith(...) }`
   - Test helper `DateTime date(String yyyyMmDd)`
 
 - [ ] **Step 1: Write the failing test**
@@ -269,6 +318,8 @@ enum QuotaPeriod { week, month }
 
 enum QuotaLevel { green, yellow, red }
 
+enum AppLanguage { system, id, en }
+
 class DayLog {
   const DayLog({
     required this.date,
@@ -291,6 +342,7 @@ class Settings {
     this.quota = 3,
     this.quotaPeriod = QuotaPeriod.week,
     this.buffer = 2,
+    this.language = AppLanguage.system,
   });
 
   final WorkMode mode;
@@ -299,6 +351,7 @@ class Settings {
   final QuotaPeriod quotaPeriod;
   final int buffer;
   final DateTime trackingSince;
+  final AppLanguage language;
 
   Settings copyWith({
     WorkMode? mode,
@@ -306,6 +359,7 @@ class Settings {
     int? quota,
     QuotaPeriod? quotaPeriod,
     int? buffer,
+    AppLanguage? language,
   }) =>
       Settings(
         trackingSince: trackingSince,
@@ -314,6 +368,7 @@ class Settings {
         quota: quota ?? this.quota,
         quotaPeriod: quotaPeriod ?? this.quotaPeriod,
         buffer: buffer ?? this.buffer,
+        language: language ?? this.language,
       );
 }
 ```
@@ -1169,6 +1224,7 @@ void main() {
     expect(s.quota, 3);
     expect(s.quotaPeriod, QuotaPeriod.week);
     expect(s.buffer, 2);
+    expect(s.language, AppLanguage.system);
     expect(s.trackingSince, date('2026-10-12'));
   });
 
@@ -1187,6 +1243,7 @@ void main() {
       quota: 12,
       quotaPeriod: QuotaPeriod.month,
       buffer: 1,
+      language: AppLanguage.id,
     ));
     final s = repo.load(date('2026-10-13'));
     expect(s.mode, WorkMode.quota);
@@ -1194,6 +1251,7 @@ void main() {
     expect(s.quota, 12);
     expect(s.quotaPeriod, QuotaPeriod.month);
     expect(s.buffer, 1);
+    expect(s.language, AppLanguage.id);
     expect(s.trackingSince, date('2026-10-12'));
   });
 }
@@ -1234,6 +1292,7 @@ class SettingsRepository {
       quota: _prefs.getInt('quota') ?? 3,
       quotaPeriod: QuotaPeriod.values.byName(_prefs.getString('quotaPeriod') ?? 'week'),
       buffer: _prefs.getInt('buffer') ?? 2,
+      language: AppLanguage.values.byName(_prefs.getString('language') ?? 'system'),
     );
   }
 
@@ -1243,6 +1302,7 @@ class SettingsRepository {
     await _prefs.setInt('quota', s.quota);
     await _prefs.setString('quotaPeriod', s.quotaPeriod.name);
     await _prefs.setInt('buffer', s.buffer);
+    await _prefs.setString('language', s.language.name);
   }
 }
 ```
@@ -1264,21 +1324,322 @@ git commit -m "Add settings repository"
 
 ---
 
-### Task 9: Providers and app bootstrap
+### Task 9: Strings (en, id) and theme
 
 **Files:**
-- Create: `lib/app/providers.dart`, `lib/app/app.dart`
+- Modify: `lib/l10n/app_en.arb`, `lib/l10n/app_id.arb` (replace the Task 1 stubs)
+- Create: `lib/l10n/l10n.dart`, `lib/ui/theme.dart`
+- Test: `test/l10n/arb_parity_test.dart`
+
+**Interfaces:**
+- Produces:
+  - Generated `AppLocalizations` with the keys below, and `context.l10n`.
+  - `AppColors` theme extension: `bg, card, tint, ink, ink2, office, onOffice, leave, onLeave, sick, onSick, moved, onMoved, qGreen, qYellow, qRed`, read through `context.colors`.
+  - `ThemeData buildTheme(Brightness)`.
+
+Rule for every later task: no user-visible string is written inside a widget. Add the key to both ARB files first. ICU messages must not contain an apostrophe (`'` is an escape character), so write "is not", not "isn't".
+
+- [ ] **Step 1: Write the English template**
+
+`lib/l10n/app_en.arb`:
+
+```json
+{
+  "@@locale": "en",
+  "appName": "Flexy Day",
+  "tabHome": "Home",
+  "tabCalendar": "Calendar",
+  "tabSettings": "Settings",
+  "question": "Going to the office today?",
+  "answerOffice": "Office",
+  "answerMove": "Move day",
+  "answerLeave": "Day off",
+  "answerSick": "Sick",
+  "moveTo": "Move to",
+  "noteHint": "Note (optional)",
+  "save": "Save",
+  "notAnswered": "Not answered yet",
+  "changeAnswer": "Change answer",
+  "notOfficeDay": "Today is not an office day.",
+  "statusOffice": "At the office",
+  "statusLeave": "Day off today",
+  "statusSick": "Out sick",
+  "statusMoved": "Moved to {date}",
+  "@statusMoved": { "placeholders": { "date": { "type": "String" } } },
+  "unfilledBanner": "{count, plural, =1{1 day not filled in} other{{count} days not filled in}}",
+  "@unfilledBanner": { "placeholders": { "count": { "type": "int" } } },
+  "nextOffice": "Next office day: {date}",
+  "@nextOffice": { "placeholders": { "date": { "type": "String" } } },
+  "noUpcoming": "No office days in the next 60 days.",
+  "quotaWeek": "Quota this week",
+  "quotaMonth": "Quota this month",
+  "quotaProgress": "{done} of {total}",
+  "@quotaProgress": { "placeholders": { "done": { "type": "int" }, "total": { "type": "int" } } },
+  "quotaGreen": "On track",
+  "quotaYellow": "Act soon",
+  "quotaRed": "Quota cannot be met",
+  "quotaStats": "Attended {done}, {need} left, {available} days available",
+  "@quotaStats": { "placeholders": { "done": { "type": "int" }, "need": { "type": "int" }, "available": { "type": "int" } } },
+  "attendance": "Attendance",
+  "statOffice": "Office",
+  "statLeave": "Off",
+  "statSick": "Sick",
+  "legendMissing": "Not filled in",
+  "modeFixed": "Fixed days",
+  "modeQuota": "Quota",
+  "periodWeek": "Per week",
+  "periodMonth": "Per month",
+  "quotaValue": "Quota: {n}",
+  "@quotaValue": { "placeholders": { "n": { "type": "int" } } },
+  "language": "Language",
+  "langSystem": "System",
+  "langId": "Bahasa Indonesia",
+  "langEn": "English"
+}
+```
+
+- [ ] **Step 2: Write the Indonesian file**
+
+`lib/l10n/app_id.arb`:
+
+```json
+{
+  "@@locale": "id",
+  "appName": "Flexy Day",
+  "tabHome": "Home",
+  "tabCalendar": "Kalender",
+  "tabSettings": "Pengaturan",
+  "question": "Ngantor hari ini?",
+  "answerOffice": "Ngantor",
+  "answerMove": "Pindah hari",
+  "answerLeave": "Libur",
+  "answerSick": "Sakit",
+  "moveTo": "Pindah ke tanggal",
+  "noteHint": "Catatan (opsional)",
+  "save": "Simpan",
+  "notAnswered": "Belum dijawab",
+  "changeAnswer": "Ubah jawaban",
+  "notOfficeDay": "Hari ini bukan jadwal ke kantor.",
+  "statusOffice": "Udah ngantor",
+  "statusLeave": "Libur hari ini",
+  "statusSick": "Lagi sakit",
+  "statusMoved": "Dipindah ke {date}",
+  "unfilledBanner": "{count, plural, other{{count} hari belum diisi}}",
+  "nextOffice": "Jadwal ke kantor berikutnya: {date}",
+  "noUpcoming": "Belum ada jadwal ke kantor dalam 60 hari ke depan.",
+  "quotaWeek": "Kuota minggu ini",
+  "quotaMonth": "Kuota bulan ini",
+  "quotaProgress": "{done} dari {total}",
+  "quotaGreen": "Aman",
+  "quotaYellow": "Segera penuhi",
+  "quotaRed": "Kuota tidak akan terpenuhi",
+  "quotaStats": "Hadir {done}, kurang {need}, tersedia {available} hari",
+  "attendance": "Kehadiran",
+  "statOffice": "Hadir",
+  "statLeave": "Libur",
+  "statSick": "Sakit",
+  "legendMissing": "Belum diisi",
+  "modeFixed": "Hari tetap",
+  "modeQuota": "Kuota",
+  "periodWeek": "Per minggu",
+  "periodMonth": "Per bulan",
+  "quotaValue": "Kuota: {n}",
+  "language": "Bahasa",
+  "langSystem": "Ikuti sistem",
+  "langId": "Bahasa Indonesia",
+  "langEn": "English"
+}
+```
+
+- [ ] **Step 3: Generate and write the barrel**
+
+```bash
+fvm flutter gen-l10n
+```
+
+Expected: generated `app_localizations.dart` (and `_en`, `_id`). Note where it was written. This plan assumes `lib/l10n/`. If the resolved Flutter writes a synthetic package instead (import `package:flutter_gen/gen_l10n/app_localizations.dart`), change only the import in the barrel below, and record the location in `progress.md`.
+
+`lib/l10n/l10n.dart`:
+
+```dart
+import 'package:flutter/widgets.dart';
+
+import 'app_localizations.dart';
+
+export 'app_localizations.dart';
+
+extension L10nContext on BuildContext {
+  AppLocalizations get l10n => AppLocalizations.of(context);
+}
+```
+
+If `AppLocalizations.of(context)` returns a nullable in the resolved version, use `AppLocalizations.of(context)!`.
+
+- [ ] **Step 4: Write the parity test**
+
+`test/l10n/arb_parity_test.dart`:
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+Set<String> keys(String path) => (jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>)
+    .keys
+    .where((k) => !k.startsWith('@'))
+    .toSet();
+
+void main() {
+  test('en and id have the same message keys', () {
+    final en = keys('lib/l10n/app_en.arb');
+    final id = keys('lib/l10n/app_id.arb');
+    expect(id.difference(en), isEmpty, reason: 'only in id');
+    expect(en.difference(id), isEmpty, reason: 'only in en');
+  });
+}
+```
+
+Run: `fvm flutter test test/l10n/arb_parity_test.dart`
+Expected: PASS. To see it work, temporarily delete one key from `app_id.arb`: the test must FAIL naming that key. Restore it.
+
+- [ ] **Step 5: Write the theme**
+
+`lib/ui/theme.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+
+class AppColors extends ThemeExtension<AppColors> {
+  const AppColors({
+    required this.bg,
+    required this.card,
+    required this.tint,
+    required this.ink,
+    required this.ink2,
+    required this.office,
+    required this.onOffice,
+    required this.leave,
+    required this.onLeave,
+    required this.sick,
+    required this.onSick,
+    required this.moved,
+    required this.onMoved,
+    required this.qGreen,
+    required this.qYellow,
+    required this.qRed,
+  });
+
+  final Color bg, card, tint, ink, ink2;
+  final Color office, onOffice, leave, onLeave, sick, onSick, moved, onMoved;
+  final Color qGreen, qYellow, qRed;
+
+  static const light = AppColors(
+    bg: Color(0xFFF7F6FB),
+    card: Color(0xFFFFFFFF),
+    tint: Color(0xFFEFEDFA),
+    ink: Color(0xFF1B1A2E),
+    ink2: Color(0xFF6B6A80),
+    office: Color(0xFFCFF5E7),
+    onOffice: Color(0xFF0B8F6A),
+    leave: Color(0xFFD6EAFF),
+    onLeave: Color(0xFF2F7DE1),
+    sick: Color(0xFFFFD9E0),
+    onSick: Color(0xFFD6336C),
+    moved: Color(0xFFFFF0C2),
+    onMoved: Color(0xFFA8710F),
+    qGreen: Color(0xFF1FB57A),
+    qYellow: Color(0xFFF5B301),
+    qRed: Color(0xFFF0476A),
+  );
+
+  static const dark = AppColors(
+    bg: Color(0xFF121120),
+    card: Color(0xFF1C1B2E),
+    tint: Color(0xFF25233B),
+    ink: Color(0xFFF2F1FA),
+    ink2: Color(0xFFA09FB8),
+    office: Color(0xFF1D4D3F),
+    onOffice: Color(0xFF6FE3B6),
+    leave: Color(0xFF1B3A66),
+    onLeave: Color(0xFF8DBBFF),
+    sick: Color(0xFF4A1F2E),
+    onSick: Color(0xFFFF8FB0),
+    moved: Color(0xFF4A3A12),
+    onMoved: Color(0xFFFFD36B),
+    qGreen: Color(0xFF1FB57A),
+    qYellow: Color(0xFFF5B301),
+    qRed: Color(0xFFF0476A),
+  );
+
+  @override
+  AppColors copyWith() => this;
+
+  // ponytail: no animated theme switch, so lerp just snaps to the target.
+  @override
+  AppColors lerp(ThemeExtension<AppColors>? other, double t) => other is AppColors ? (t < 0.5 ? this : other) : this;
+}
+
+extension AppThemeContext on BuildContext {
+  AppColors get colors => Theme.of(this).extension<AppColors>()!;
+}
+
+const _primaryLight = Color(0xFF6E56F8);
+const _primaryDark = Color(0xFF9A87FF);
+
+ThemeData buildTheme(Brightness brightness) {
+  final dark = brightness == Brightness.dark;
+  final c = dark ? AppColors.dark : AppColors.light;
+  final scheme = ColorScheme.fromSeed(
+    seedColor: _primaryLight,
+    brightness: brightness,
+  ).copyWith(
+    primary: dark ? _primaryDark : _primaryLight,
+    onPrimary: dark ? const Color(0xFF1B1A2E) : Colors.white,
+    primaryContainer: dark ? const Color(0xFF3A3170) : const Color(0xFFE4DFFF),
+    onSurface: c.ink,
+    surface: c.card,
+  );
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: scheme,
+    fontFamily: 'PlusJakartaSans',
+    scaffoldBackgroundColor: c.bg,
+    splashFactory: NoSplash.splashFactory,
+    extensions: [c],
+  );
+}
+```
+
+- [ ] **Step 6: Verify and commit**
+
+```bash
+fvm flutter analyze
+fvm flutter test
+git add lib/l10n lib/ui/theme.dart test/l10n
+git commit -m "Add en and id strings and app theme"
+```
+
+Expected: `No issues found!` and all tests pass. Commit generated l10n files if they were written under `lib/l10n/`.
+
+---
+
+### Task 10: Providers and app bootstrap
+
+**Files:**
+- Create: `lib/app/providers.dart`, `lib/app/app.dart`, `lib/ui/shell.dart` (stub, replaced in Task 14)
 - Modify: `lib/main.dart` (replace fully)
 
 **Interfaces:**
-- Consumes: all repositories and domain types.
+- Consumes: repositories, `Settings`, `AppLanguage`, `buildTheme`, `AppLocalizations`.
 - Produces:
   - `clockProvider` (`DateTime Function()`), `sharedPreferencesProvider`, `databaseProvider`
   - `logRepositoryProvider`, `holidayRepositoryProvider`, `settingsRepositoryProvider`
   - `settingsProvider` (`NotifierProvider<SettingsNotifier, Settings>`; `notifier.update(Settings)`)
+  - `localeProvider` (`Provider<Locale?>`; `null` follows the device)
   - `logsProvider`, `holidaysProvider` (`StreamProvider`)
-  - `ctxProvider` (`Provider<Ctx>`) where `Ctx { DateTime today; Settings settings; List<DayLog> logs; Set<DateTime> holidays; DayLog? logFor(DateTime) }`
-  - `class FlexyDayApp extends StatelessWidget`
+  - `ctxProvider` (`Provider<Ctx>`) with `Ctx { DateTime today; Settings settings; List<DayLog> logs; Set<DateTime> holidays; DayLog? logFor(DateTime) }`
+  - `FlexyDayApp`
 
 - [ ] **Step 1: Write providers**
 
@@ -1286,6 +1647,7 @@ git commit -m "Add settings repository"
 
 ```dart
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -1331,6 +1693,12 @@ class SettingsNotifier extends Notifier<Settings> {
 
 final settingsProvider = NotifierProvider<SettingsNotifier, Settings>(SettingsNotifier.new);
 
+final localeProvider = Provider<Locale?>((ref) => switch (ref.watch(settingsProvider).language) {
+      AppLanguage.system => null,
+      AppLanguage.id => const Locale('id'),
+      AppLanguage.en => const Locale('en'),
+    });
+
 final logsProvider =
     StreamProvider<List<DayLog>>((ref) => ref.watch(logRepositoryProvider).watchAll());
 
@@ -1367,24 +1735,45 @@ final ctxProvider = Provider<Ctx>((ref) => Ctx(
     ));
 ```
 
-- [ ] **Step 2: Write the app widget and main**
+- [ ] **Step 2: Write the app widget, stub shell and main**
 
 `lib/app/app.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/l10n.dart';
 import '../ui/shell.dart';
+import '../ui/theme.dart';
+import 'providers.dart';
 
-class FlexyDayApp extends StatelessWidget {
+class FlexyDayApp extends ConsumerWidget {
   const FlexyDayApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Flexy Day',
-        theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+  Widget build(BuildContext context, WidgetRef ref) => MaterialApp(
+        onGenerateTitle: (c) => c.l10n.appName,
+        locale: ref.watch(localeProvider),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: buildTheme(Brightness.light),
+        darkTheme: buildTheme(Brightness.dark),
         home: const Shell(),
       );
+}
+```
+
+`lib/ui/shell.dart` (stub):
+
+```dart
+import 'package:flutter/material.dart';
+
+class Shell extends StatelessWidget {
+  const Shell({super.key});
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Flexy Day')));
 }
 ```
 
@@ -1412,118 +1801,277 @@ Future<void> main() async {
 }
 ```
 
-`lib/ui/shell.dart` does not exist yet, so analysis fails until Task 11. Create a temporary stub now so this task compiles on its own:
+`supportedLocales` lists `en` before `id` (alphabetical), so a device in any other language falls back to English. Verify this in Task 15.
 
-`lib/ui/shell.dart`:
-
-```dart
-import 'package:flutter/material.dart';
-
-class Shell extends StatelessWidget {
-  const Shell({super.key});
-
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Flexy Day')));
-}
-```
-
-- [ ] **Step 3: Verify**
+- [ ] **Step 3: Verify and commit**
 
 ```bash
 fvm flutter analyze
 fvm flutter test
+git add lib/app lib/main.dart lib/ui/shell.dart
+git commit -m "Add providers, locale selection and app bootstrap"
 ```
 
 Expected: `No issues found!` and all tests pass.
 
-- [ ] **Step 4: Commit**
-
-```bash
-git add lib/app lib/main.dart lib/ui/shell.dart
-git commit -m "Add providers and app bootstrap"
-```
-
 ---
 
-### Task 10: Shared UI pieces (format, quota badge, answer sheet)
+### Task 11: Shared UI pieces (icons, formatting, widgets)
 
 **Files:**
-- Create: `lib/ui/format.dart`, `lib/ui/quota_badge.dart`, `lib/ui/answer_sheet.dart`
+- Create: `lib/ui/icons.dart`, `lib/ui/format.dart`, `lib/ui/widgets.dart`
 
 **Interfaces:**
-- Consumes: `Ctx`, providers, `LogRepository.upsert`, `isOfficeDay`, `canRescheduleTo`, `daysInRange`.
+- Consumes: `AppColors`, `AppLocalizations`, `QuotaStatus`, `QuotaLevel`, `DayStatus`.
 - Produces:
-  - `String formatDate(DateTime)` ("Senin, 12 Oktober 2026"), `String formatMonth(DateTime)`, `const List<String> weekdayShort`, `String statusLabel(DayStatus)`
-  - `class QuotaBadge(QuotaStatus)`
-  - `Future<void> showAnswerSheet(BuildContext, DateTime date)`: answers or amends a date. Options: office, leave, sick, plus reschedule only in fixed mode on an office day or on a day already rescheduled. Reschedule requires a target date. Save writes one `DayLog`.
+  - `AppIcons.*` (one place to adjust Phosphor names)
+  - `fmtWeekday(ctx, d)`, `fmtDate(ctx, d)`, `fmtDateLong(ctx, d)`, `fmtMonth(ctx, d)`, `List<String> shortWeekdays(ctx)` (Monday first), `String statusText(ctx, DayLog)`
+  - `(Color bg, Color fg) statusColors(AppColors, DayStatus)`, `(Color bg, Color fg) levelColors(AppColors, QuotaLevel)`
+  - `FloatingNav`, `NavEntry`, `StatTile`, `QuotaProgress`
 
-- [ ] **Step 1: Write `format.dart`**
+- [ ] **Step 1: Icons in one place**
+
+`lib/ui/icons.dart`:
+
+```dart
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
+abstract final class AppIcons {
+  static const home = PhosphorIconsRegular.house;
+  static const homeActive = PhosphorIconsFill.house;
+  static const calendar = PhosphorIconsRegular.calendarBlank;
+  static const calendarActive = PhosphorIconsFill.calendarBlank;
+  static const settings = PhosphorIconsRegular.sliders;
+  static const settingsActive = PhosphorIconsFill.sliders;
+  static const office = PhosphorIconsRegular.buildings;
+  static const move = PhosphorIconsRegular.calendarPlus;
+  static const leave = PhosphorIconsRegular.umbrellaSimple;
+  static const sick = PhosphorIconsRegular.thermometer;
+  static const check = PhosphorIconsBold.check;
+  static const prev = PhosphorIconsRegular.caretLeft;
+  static const next = PhosphorIconsRegular.caretRight;
+  static const arrow = PhosphorIconsRegular.arrowRight;
+}
+```
+
+Run `fvm flutter analyze`. These names are from memory and unverified. If one does not exist in the resolved `phosphor_flutter`, fix it here only, using the package docs. Do not change call sites.
+
+- [ ] **Step 2: Formatting with intl**
 
 `lib/ui/format.dart`:
 
 ```dart
+import 'package:flutter/widgets.dart';
+import 'package:intl/intl.dart';
+
 import '../domain/models.dart';
+import '../l10n/l10n.dart';
 
-const _months = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-];
-const _days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-const weekdayShort = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+String _loc(BuildContext c) => Localizations.localeOf(c).languageCode;
 
-String formatDate(DateTime d) =>
-    '${_days[d.weekday - 1]}, ${d.day} ${_months[d.month - 1]} ${d.year}';
+String fmtWeekday(BuildContext c, DateTime d) => DateFormat.EEEE(_loc(c)).format(d);
 
-String formatMonth(DateTime d) => '${_months[d.month - 1]} ${d.year}';
+String fmtDate(BuildContext c, DateTime d) => DateFormat.yMMMMd(_loc(c)).format(d);
 
-String statusLabel(DayStatus s) => switch (s) {
-      DayStatus.office => 'Ke kantor',
-      DayStatus.leave => 'Libur',
-      DayStatus.sick => 'Sakit',
-      DayStatus.rescheduled => 'Reschedule',
-    };
+String fmtDateLong(BuildContext c, DateTime d) => DateFormat.yMMMMEEEEd(_loc(c)).format(d);
+
+String fmtMonth(BuildContext c, DateTime d) => DateFormat.yMMMM(_loc(c)).format(d);
+
+// 2024-01-01 is a Monday.
+List<String> shortWeekdays(BuildContext c) =>
+    [for (var i = 0; i < 7; i++) DateFormat.E(_loc(c)).format(DateTime(2024, 1, 1 + i))];
+
+String statusText(BuildContext c, DayLog log) {
+  final l = c.l10n;
+  return switch (log.status) {
+    DayStatus.office => l.statusOffice,
+    DayStatus.leave => l.statusLeave,
+    DayStatus.sick => l.statusSick,
+    DayStatus.rescheduled =>
+      l.statusMoved(log.rescheduledTo == null ? '' : fmtDate(c, log.rescheduledTo!)),
+  };
+}
 ```
 
-- [ ] **Step 2: Write `quota_badge.dart`**
+If a locale throws a "locale data not initialized" error at runtime, call `initializeDateFormatting()` from `package:intl/date_symbol_data_local.dart` in `main()` before `runApp`. Check this in Task 15.
 
-`lib/ui/quota_badge.dart`:
+- [ ] **Step 3: Shared widgets**
+
+`lib/ui/widgets.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
 
 import '../domain/models.dart';
-import '../domain/quota.dart';
+import 'theme.dart';
 
-class QuotaBadge extends StatelessWidget {
-  const QuotaBadge(this.status, {super.key});
+(Color, Color) statusColors(AppColors c, DayStatus s) => switch (s) {
+      DayStatus.office => (c.office, c.onOffice),
+      DayStatus.leave => (c.leave, c.onLeave),
+      DayStatus.sick => (c.sick, c.onSick),
+      DayStatus.rescheduled => (c.moved, c.onMoved),
+    };
 
-  final QuotaStatus status;
+(Color, Color) levelColors(AppColors c, QuotaLevel l) => switch (l) {
+      QuotaLevel.green => (c.qGreen, Colors.white),
+      QuotaLevel.yellow => (c.qYellow, const Color(0xFF1B1A2E)),
+      QuotaLevel.red => (c.qRed, Colors.white),
+    };
+
+class NavEntry {
+  const NavEntry(this.icon, this.activeIcon, this.label);
+
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+}
+
+class FloatingNav extends StatelessWidget {
+  const FloatingNav({
+    super.key,
+    required this.entries,
+    required this.index,
+    required this.onChanged,
+  });
+
+  final List<NavEntry> entries;
+  final int index;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final (color, label) = switch (status.level) {
-      QuotaLevel.green => (Colors.green, 'Aman'),
-      QuotaLevel.yellow => (Colors.amber.shade700, 'Segera penuhi'),
-      QuotaLevel.red => (Colors.red, 'Kuota tidak akan terpenuhi'),
-    };
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: context.colors.card,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: cs.primaryContainer),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          for (var i = 0; i < entries.length; i++)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onChanged(i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: i == index ? cs.primaryContainer : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      i == index ? entries[i].activeIcon : entries[i].icon,
+                      size: 22,
+                      color: i == index ? cs.primary : context.colors.ink2,
+                    ),
+                    if (i == index) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        entries[i].label,
+                        style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class StatTile extends StatelessWidget {
+  const StatTile({super.key, required this.label, required this.value, required this.colors});
+
+  final String label;
+  final int value;
+  final (Color, Color) colors;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(color: colors.$1, borderRadius: BorderRadius.circular(18)),
+        child: Row(
+          children: [
+            Text(label, style: TextStyle(color: colors.$2, fontWeight: FontWeight.w600, fontSize: 12)),
+            const Spacer(),
+            Text('$value', style: TextStyle(color: colors.$2, fontWeight: FontWeight.w800, fontSize: 18)),
+          ],
+        ),
+      );
+}
+
+// Dots for small quotas, a bar for large ones (12 dots would not fit).
+class QuotaProgress extends StatelessWidget {
+  const QuotaProgress({super.key, required this.total, required this.done, required this.color});
+
+  final int total;
+  final int done;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final empty = context.colors.tint;
+    if (total > 7) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: LinearProgressIndicator(
+          value: total == 0 ? 0 : (done / total).clamp(0, 1).toDouble(),
+          minHeight: 8,
+          color: color,
+          backgroundColor: empty,
+        ),
+      );
+    }
     return Row(
       children: [
-        Icon(Icons.circle, color: color, size: 14),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            '$label. Hadir ${status.done}, kurang ${status.need}, hari tersedia ${status.available}.',
+        for (var i = 0; i < total; i++)
+          Container(
+            width: 28,
+            height: 28,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: i < done ? color : empty),
           ),
-        ),
       ],
     );
   }
 }
 ```
 
-- [ ] **Step 3: Write `answer_sheet.dart`**
+- [ ] **Step 4: Verify and commit**
 
-`lib/ui/answer_sheet.dart`:
+```bash
+fvm flutter analyze
+git add lib/ui/icons.dart lib/ui/format.dart lib/ui/widgets.dart
+git commit -m "Add icons, intl formatting and shared widgets"
+```
+
+Expected: `No issues found!`
+
+---
+
+### Task 12: Answer panel and sheet
+
+**Files:**
+- Create: `lib/ui/answer_panel.dart`
+
+**Interfaces:**
+- Consumes: `ctxProvider`, `logRepositoryProvider`, `isOfficeDay`, `canRescheduleTo`, `daysInRange`, `AppIcons`, `fmtDateLong`, `shortWeekdays`.
+- Produces:
+  - `AnswerPanel({required DateTime date, bool onHero = false, VoidCallback? onSaved})`: tiles (office, move if allowed, leave, sick). After a tile is chosen, a note field and Save appear. "Move day" adds a strip of selectable target dates (future non-holiday weekdays); Save stays inactive until one is picked.
+  - `Future<void> showAnswerSheet(BuildContext, DateTime date)`: the panel inside a bottom sheet, used for amend and for filling past days.
+  - Reused by the blocking screen in milestone 2.
+
+- [ ] **Step 1: Write the panel**
+
+`lib/ui/answer_panel.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -1533,25 +2081,50 @@ import '../app/providers.dart';
 import '../domain/dates.dart';
 import '../domain/models.dart';
 import '../domain/schedule.dart';
+import '../l10n/l10n.dart';
 import 'format.dart';
+import 'icons.dart';
+import 'theme.dart';
 
-Future<void> showAnswerSheet(BuildContext context, DateTime date) =>
-    showModalBottomSheet<void>(
+Future<void> showAnswerSheet(BuildContext context, DateTime date) => showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => AnswerSheet(date: date),
+      showDragHandle: true,
+      backgroundColor: context.colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                fmtDateLong(ctx, date),
+                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 14),
+              AnswerPanel(date: date, onSaved: () => Navigator.pop(ctx)),
+            ],
+          ),
+        ),
+      ),
     );
 
-class AnswerSheet extends ConsumerStatefulWidget {
-  const AnswerSheet({super.key, required this.date});
+class AnswerPanel extends ConsumerStatefulWidget {
+  const AnswerPanel({super.key, required this.date, this.onHero = false, this.onSaved});
 
   final DateTime date;
+  final bool onHero;
+  final VoidCallback? onSaved;
 
   @override
-  ConsumerState<AnswerSheet> createState() => _AnswerSheetState();
+  ConsumerState<AnswerPanel> createState() => _AnswerPanelState();
 }
 
-class _AnswerSheetState extends ConsumerState<AnswerSheet> {
+class _AnswerPanelState extends ConsumerState<AnswerPanel> {
   DayStatus? _status;
   DateTime? _target;
   final _note = TextEditingController();
@@ -1571,19 +2144,16 @@ class _AnswerSheetState extends ConsumerState<AnswerSheet> {
     super.dispose();
   }
 
-  Future<void> _pickTarget(Ctx c) async {
+  List<DateTime> _candidates(Ctx c) {
     final tomorrow = DateTime(c.today.year, c.today.month, c.today.day + 1);
-    bool ok(DateTime d) => canRescheduleTo(d, c.today, c.holidays);
-    final candidates = daysInRange(tomorrow, DateTime(tomorrow.year, tomorrow.month, tomorrow.day + 60));
-    final initial = (_target != null && ok(_target!)) ? _target! : candidates.firstWhere(ok);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: tomorrow,
-      lastDate: DateTime(tomorrow.year + 1, tomorrow.month, tomorrow.day),
-      selectableDayPredicate: ok,
-    );
-    if (picked != null) setState(() => _target = dateOnly(picked));
+    final list = daysInRange(
+      tomorrow,
+      DateTime(tomorrow.year, tomorrow.month, tomorrow.day + 45),
+    ).where((d) => canRescheduleTo(d, c.today, c.holidays)).take(10).toList();
+    if (_target != null && !list.contains(_target) && canRescheduleTo(_target!, c.today, c.holidays)) {
+      list.insert(0, _target!);
+    }
+    return list;
   }
 
   Future<void> _save() async {
@@ -1594,96 +2164,182 @@ class _AnswerSheetState extends ConsumerState<AnswerSheet> {
           note: note.isEmpty ? null : note,
           rescheduledTo: _status == DayStatus.rescheduled ? _target : null,
         ));
-    if (mounted) Navigator.pop(context);
+    widget.onSaved?.call();
   }
 
   @override
   Widget build(BuildContext context) {
     final c = ref.watch(ctxProvider);
-    final alreadyRescheduled = c.logFor(widget.date)?.status == DayStatus.rescheduled;
-    final canReschedule = c.settings.mode == WorkMode.fixed &&
-        (alreadyRescheduled || isOfficeDay(widget.date, c.settings, c.logs, c.holidays));
-    final options = [
-      DayStatus.office,
-      DayStatus.leave,
-      DayStatus.sick,
-      if (canReschedule) DayStatus.rescheduled,
+    final l = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    final colors = context.colors;
+    final hero = widget.onHero;
+    final tileBg = hero ? const Color(0x33FFFFFF) : colors.tint;
+    final tileFg = hero ? Colors.white : colors.ink;
+    final selBg = hero ? Colors.white : cs.primary;
+    final selFg = hero ? cs.primary : cs.onPrimary;
+
+    final canMove = c.settings.mode == WorkMode.fixed &&
+        (c.logFor(widget.date)?.status == DayStatus.rescheduled ||
+            isOfficeDay(widget.date, c.settings, c.logs, c.holidays));
+    final entries = [
+      (DayStatus.office, AppIcons.office, l.answerOffice),
+      if (canMove) (DayStatus.rescheduled, AppIcons.move, l.answerMove),
+      (DayStatus.leave, AppIcons.leave, l.answerLeave),
+      (DayStatus.sick, AppIcons.sick, l.answerSick),
     ];
     final canSave = _status != null && (_status != DayStatus.rescheduled || _target != null);
+    final weekdays = shortWeekdays(context);
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: entries.length == 4 ? 2 : 3,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: entries.length == 4 ? 1.9 : 1.15,
           children: [
-            Text(formatDate(widget.date), style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final s in options)
-                  ChoiceChip(
-                    label: Text(statusLabel(s)),
-                    selected: _status == s,
-                    onSelected: (_) => setState(() => _status = s),
+            for (final e in entries)
+              GestureDetector(
+                onTap: () => setState(() => _status = e.$1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  decoration: BoxDecoration(
+                    color: _status == e.$1 ? selBg : tileBg,
+                    borderRadius: BorderRadius.circular(18),
                   ),
-              ],
-            ),
-            if (_status == DayStatus.rescheduled) ...[
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () => _pickTarget(c),
-                child: Text(_target == null ? 'Pilih tanggal tujuan' : formatDate(_target!)),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(e.$2, size: 24, color: _status == e.$1 ? selFg : tileFg),
+                      const SizedBox(height: 4),
+                      Text(
+                        e.$3,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _status == e.$1 ? selFg : tileFg,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: _note,
-              decoration: const InputDecoration(labelText: 'Catatan (opsional)'),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: canSave ? _save : null,
-                child: const Text('Simpan'),
-              ),
-            ),
           ],
         ),
-      ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          alignment: Alignment.topCenter,
+          child: _status == null
+              ? const SizedBox(width: double.infinity)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_status == DayStatus.rescheduled) ...[
+                      const SizedBox(height: 14),
+                      Text(
+                        l.moveTo,
+                        style: TextStyle(color: tileFg, fontWeight: FontWeight.w600, fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final d in _candidates(c))
+                              GestureDetector(
+                                onTap: () => setState(() => _target = d),
+                                child: Container(
+                                  width: 52,
+                                  margin: const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: _target == d ? selBg : tileBg,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        weekdays[d.weekday - 1],
+                                        style: TextStyle(fontSize: 11, color: _target == d ? selFg : tileFg),
+                                      ),
+                                      Text(
+                                        '${d.day}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: _target == d ? selFg : tileFg,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _note,
+                      style: TextStyle(color: tileFg),
+                      decoration: InputDecoration(
+                        hintText: l.noteHint,
+                        hintStyle: TextStyle(color: hero ? const Color(0xB3FFFFFF) : colors.ink2),
+                        filled: true,
+                        fillColor: tileBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: canSave ? _save : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: hero ? Colors.white : cs.primary,
+                        foregroundColor: hero ? cs.primary : cs.onPrimary,
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: Text(l.save, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    ),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }
 ```
 
-- [ ] **Step 4: Verify**
-
-Run: `fvm flutter analyze`
-Expected: `No issues found!`
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 2: Verify and commit**
 
 ```bash
-git add lib/ui
-git commit -m "Add formatting, quota badge and answer sheet"
+fvm flutter analyze
+git add lib/ui/answer_panel.dart
+git commit -m "Add answer panel and answer sheet"
 ```
+
+Expected: `No issues found!`
 
 ---
 
-### Task 11: Home screen, shell, temporary settings sheet
+### Task 13: Home screen
 
 **Files:**
-- Create: `lib/ui/home_screen.dart`, `lib/ui/dev_settings_sheet.dart`
-- Modify: `lib/ui/shell.dart` (replace the stub)
+- Create: `lib/ui/home_screen.dart`
 
 **Interfaces:**
-- Consumes: `ctxProvider`, `settingsProvider`, `needsAnswer`, `unansweredDates`, `summarizeMonth`, `computeQuotaStatus`, `isOfficeDay`, `showAnswerSheet`, `QuotaBadge`, format helpers.
-- Produces: `Shell` with Home and Calendar tabs (`CalendarScreen` from Task 12), a tune button opening `DevSettingsSheet`. `DevSettingsSheet` is temporary and is replaced by the real Settings screen in milestone 3.
+- Consumes: `ctxProvider`, `needsAnswer`, `unansweredDates`, `summarizeMonth`, `computeQuotaStatus`, `isOfficeDay`, `AnswerPanel`, `showAnswerSheet`, format helpers, `StatTile`, `QuotaProgress`, `statusColors`, `levelColors`.
+- Produces: `HomeScreen`: large weekday header, a hero card (primary with inline `AnswerPanel` when unanswered; status-colored summary with "Change answer" when answered; a quiet card when today needs no answer), the unfilled-days banner, a quota card (quota mode) or next office day (fixed mode), and the bento summary.
 
-- [ ] **Step 1: Write the Home screen**
+- [ ] **Step 1: Write the screen**
 
 `lib/ui/home_screen.dart`:
 
@@ -1697,9 +2353,12 @@ import '../domain/models.dart';
 import '../domain/quota.dart';
 import '../domain/schedule.dart';
 import '../domain/summary.dart';
-import 'answer_sheet.dart';
+import '../l10n/l10n.dart';
+import 'answer_panel.dart';
 import 'format.dart';
-import 'quota_badge.dart';
+import 'icons.dart';
+import 'theme.dart';
+import 'widgets.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -1707,7 +2366,10 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = ref.watch(ctxProvider);
-    final todayLog = c.logFor(c.today);
+    final l = context.l10n;
+    final colors = context.colors;
+    final theme = Theme.of(context);
+    final log = c.logFor(c.today);
     final needs = needsAnswer(c.today, c.settings, c.logs, c.holidays);
     final missing = unansweredDates(
       today: c.today,
@@ -1717,232 +2379,262 @@ class HomeScreen extends ConsumerWidget {
     ).length;
     final summary = summarizeMonth(c.today, c.logs, c.holidays);
     final percent = summary.percent;
+    final quota = c.settings.mode == WorkMode.quota
+        ? computeQuotaStatus(
+            today: c.today,
+            settings: c.settings,
+            logs: c.logs,
+            holidays: c.holidays,
+          )
+        : null;
+
+    Widget card({required Widget child, Color? color}) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: color ?? colors.card,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: child,
+        );
+
+    Widget hero() {
+      if (log == null && !needs) {
+        return card(child: Text(l.notOfficeDay, style: TextStyle(color: colors.ink2)));
+      }
+      if (log == null) {
+        return card(
+          color: theme.colorScheme.primary,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l.question,
+                style: TextStyle(color: theme.colorScheme.onPrimary, fontSize: 22, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 14),
+              AnswerPanel(date: c.today, onHero: true),
+            ],
+          ),
+        );
+      }
+      final (bg, fg) = statusColors(colors, log.status);
+      return card(
+        color: bg,
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
+              child: Icon(AppIcons.check, size: 20, color: bg),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    statusText(context, log),
+                    style: TextStyle(color: fg, fontSize: 17, fontWeight: FontWeight.w800),
+                  ),
+                  if (log.note != null) Text(log.note!, style: TextStyle(color: fg, fontSize: 12)),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => showAnswerSheet(context, c.today),
+              child: Text(l.changeAnswer, style: TextStyle(color: fg, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget middle() {
+      if (quota != null) {
+        final (bg, fg) = levelColors(colors, quota.level);
+        final label = switch (quota.level) {
+          QuotaLevel.green => l.quotaGreen,
+          QuotaLevel.yellow => l.quotaYellow,
+          QuotaLevel.red => l.quotaRed,
+        };
+        final total = c.settings.quota;
+        return card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                c.settings.quotaPeriod == QuotaPeriod.week ? l.quotaWeek : l.quotaMonth,
+                style: TextStyle(color: colors.ink2, fontSize: 12),
+              ),
+              const SizedBox(height: 10),
+              QuotaProgress(total: total, done: quota.done, color: bg),
+              const SizedBox(height: 10),
+              Text(
+                l.quotaProgress(quota.done, total),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+                child: Text(label, style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l.quotaStats(quota.done, quota.need, quota.available),
+                style: TextStyle(color: colors.ink2, fontSize: 11),
+              ),
+            ],
+          ),
+        );
+      }
+      final end = DateTime(c.today.year, c.today.month, c.today.day + 60);
+      DateTime? next;
+      for (final d in daysInRange(c.today, end)) {
+        if (isOfficeDay(d, c.settings, c.logs, c.holidays)) {
+          next = d;
+          break;
+        }
+      }
+      return card(
+        child: Text(next == null ? l.noUpcoming : l.nextOffice(fmtDate(context, next))),
+      );
+    }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 110),
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        Text(
+          fmtWeekday(context, c.today),
+          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.1),
+        ),
+        Text(fmtDate(context, c.today), style: TextStyle(color: colors.ink2)),
+        const SizedBox(height: 16),
+        hero(),
+        if (missing > 0) ...[
+          const SizedBox(height: 12),
+          card(
+            color: colors.sick,
+            child: Row(
               children: [
-                Text(formatDate(c.today), style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                if (!needs && todayLog == null)
-                  const Text('Hari ini bukan jadwal ke kantor.')
-                else ...[
-                  Text(todayLog == null
-                      ? 'Belum dijawab.'
-                      : '${statusLabel(todayLog.status)}${todayLog.note == null ? '' : ': ${todayLog.note}'}'),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () => showAnswerSheet(context, c.today),
-                    child: Text(todayLog == null ? 'Jawab' : 'Ubah jawaban'),
+                Expanded(
+                  child: Text(
+                    l.unfilledBanner(missing),
+                    style: TextStyle(color: colors.onSick, fontWeight: FontWeight.w600),
                   ),
-                ],
+                ),
+                Icon(AppIcons.arrow, color: colors.onSick, size: 18),
               ],
             ),
           ),
-        ),
-        if (missing > 0)
-          Card(
-            color: Theme.of(context).colorScheme.errorContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('$missing hari belum diisi. Buka Kalender untuk mengisinya.'),
-            ),
-          ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: c.settings.mode == WorkMode.quota
-                ? QuotaBadge(computeQuotaStatus(
-                    today: c.today,
-                    settings: c.settings,
-                    logs: c.logs,
-                    holidays: c.holidays,
-                  ))
-                : Text(_nextOfficeDay(c)),
-          ),
-        ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(formatMonth(c.today), style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text('Hadir ${summary.office}, libur ${summary.leave}, sakit ${summary.sick}'),
-                Text('Hari kerja dihitung: ${summary.denominator}'),
-                Text('Kehadiran: ${percent == null ? '-' : '${(percent * 100).toStringAsFixed(0)}%'}'),
-              ],
-            ),
+        ],
+        const SizedBox(height: 12),
+        middle(),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 156,
+          child: Row(
+            children: [
+              Expanded(
+                flex: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(24)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${l.attendance}, ${fmtMonth(context, c.today)}',
+                        style: TextStyle(color: colors.ink2, fontSize: 11),
+                      ),
+                      Text(
+                        percent == null ? '-' : '${(percent * 100).round()}%',
+                        style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, height: 1),
+                      ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: percent ?? 0,
+                          minHeight: 6,
+                          color: theme.colorScheme.primary,
+                          backgroundColor: colors.tint,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 10,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: StatTile(
+                        label: l.statOffice,
+                        value: summary.office,
+                        colors: statusColors(colors, DayStatus.office),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: StatTile(
+                        label: l.statLeave,
+                        value: summary.leave,
+                        colors: statusColors(colors, DayStatus.leave),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: StatTile(
+                        label: l.statSick,
+                        value: summary.sick,
+                        colors: statusColors(colors, DayStatus.sick),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
-
-  String _nextOfficeDay(Ctx c) {
-    final end = DateTime(c.today.year, c.today.month, c.today.day + 60);
-    for (final d in daysInRange(c.today, end)) {
-      if (isOfficeDay(d, c.settings, c.logs, c.holidays)) {
-        return 'Jadwal ke kantor berikutnya: ${formatDate(d)}';
-      }
-    }
-    return 'Belum ada jadwal ke kantor dalam 60 hari ke depan.';
-  }
 }
 ```
 
-- [ ] **Step 2: Write the temporary settings sheet**
+The banner does not navigate in this milestone. It is a hint; the calendar shows the missing days.
 
-`lib/ui/dev_settings_sheet.dart`:
+- [ ] **Step 2: Verify**
 
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+Run: `fvm flutter analyze`
+Expected: `No issues found!` Commit together with Task 14 (the shell is still a stub, but the screen compiles).
 
-import '../app/providers.dart';
-import '../domain/models.dart';
-import 'format.dart';
-
-// Temporary. Replaced by the Settings screen in milestone 3.
-class DevSettingsSheet extends ConsumerWidget {
-  const DevSettingsSheet({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(settingsProvider);
-    final notifier = ref.read(settingsProvider.notifier);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SegmentedButton<WorkMode>(
-            segments: const [
-              ButtonSegment(value: WorkMode.fixed, label: Text('Hari tetap')),
-              ButtonSegment(value: WorkMode.quota, label: Text('Kuota')),
-            ],
-            selected: {s.mode},
-            onSelectionChanged: (v) => notifier.update(s.copyWith(mode: v.first)),
-          ),
-          const SizedBox(height: 12),
-          if (s.mode == WorkMode.fixed)
-            Wrap(
-              spacing: 8,
-              children: [
-                for (var d = 1; d <= 5; d++)
-                  FilterChip(
-                    label: Text(weekdayShort[d - 1]),
-                    selected: s.fixedWeekdays.contains(d),
-                    onSelected: (on) {
-                      final next = {...s.fixedWeekdays};
-                      on ? next.add(d) : next.remove(d);
-                      notifier.update(s.copyWith(fixedWeekdays: next));
-                    },
-                  ),
-              ],
-            )
-          else ...[
-            SegmentedButton<QuotaPeriod>(
-              segments: const [
-                ButtonSegment(value: QuotaPeriod.week, label: Text('Per minggu')),
-                ButtonSegment(value: QuotaPeriod.month, label: Text('Per bulan')),
-              ],
-              selected: {s.quotaPeriod},
-              onSelectionChanged: (v) => notifier.update(s.copyWith(quotaPeriod: v.first)),
-            ),
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove),
-                  onPressed: s.quota > 1 ? () => notifier.update(s.copyWith(quota: s.quota - 1)) : null,
-                ),
-                Text('Kuota: ${s.quota}'),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => notifier.update(s.copyWith(quota: s.quota + 1)),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
+```bash
+git add lib/ui/home_screen.dart
+git commit -m "Add Home screen"
 ```
-
-- [ ] **Step 3: Replace the shell**
-
-`lib/ui/shell.dart`:
-
-```dart
-import 'package:flutter/material.dart';
-
-import 'calendar_screen.dart';
-import 'dev_settings_sheet.dart';
-import 'home_screen.dart';
-
-class Shell extends StatefulWidget {
-  const Shell({super.key});
-
-  @override
-  State<Shell> createState() => _ShellState();
-}
-
-class _ShellState extends State<Shell> {
-  int _index = 0;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Flexy Day'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.tune),
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                builder: (_) => const DevSettingsSheet(),
-              ),
-            ),
-          ],
-        ),
-        body: IndexedStack(
-          index: _index,
-          children: const [HomeScreen(), CalendarScreen()],
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (i) => setState(() => _index = i),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.calendar_month), label: 'Kalender'),
-          ],
-        ),
-      );
-}
-```
-
-Analysis fails until Task 12 creates `calendar_screen.dart`. That is expected. Do not commit until Task 12 passes analysis; commit both together in Task 12.
 
 ---
 
-### Task 12: Calendar screen with amend
+### Task 14: Calendar, settings screen, shell
 
 **Files:**
-- Create: `lib/ui/calendar_screen.dart`
+- Create: `lib/ui/calendar_screen.dart`, `lib/ui/settings_screen.dart`
+- Modify: `lib/ui/shell.dart` (replace the stub)
 
 **Interfaces:**
-- Consumes: `ctxProvider`, `showAnswerSheet`, `needsAnswer`, `monthStart`, `monthEnd`, `isWeekday`, format helpers.
-- Produces: `class CalendarScreen`: month grid with prev/next, status colors, holidays marked, unanswered past required days outlined. Tapping a non-holiday weekday opens the answer sheet (answer or amend).
+- Consumes: `ctxProvider`, `settingsProvider`, `showAnswerSheet`, `needsAnswer`, `isWeekday`, `monthStart`, `monthEnd`, format helpers, `FloatingNav`, `statusColors`.
+- Produces:
+  - `CalendarScreen`: month header with prev/next, circles per day colored by status, holidays in red text, today with a primary ring, past unanswered required days with a red ring. Tapping a non-holiday weekday opens `showAnswerSheet`.
+  - `SettingsScreen`: temporary, replaced in milestone 3. Language (system, Indonesia, English), mode, fixed weekdays or quota number and period.
+  - `Shell`: `IndexedStack` of Home, Calendar, Settings with a `FloatingNav` pill at the bottom.
 
-- [ ] **Step 1: Write the calendar**
+- [ ] **Step 1: Calendar**
 
 `lib/ui/calendar_screen.dart`:
 
@@ -1954,8 +2646,12 @@ import '../app/providers.dart';
 import '../domain/dates.dart';
 import '../domain/models.dart';
 import '../domain/schedule.dart';
-import 'answer_sheet.dart';
+import '../l10n/l10n.dart';
+import 'answer_panel.dart';
 import 'format.dart';
+import 'icons.dart';
+import 'theme.dart';
+import 'widgets.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -1972,20 +2668,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     setState(() => _month = DateTime(m.year, m.month + months, 1));
   }
 
-  Color? _fill(DayStatus? s) => switch (s) {
-        DayStatus.office => Colors.green.shade200,
-        DayStatus.leave => Colors.blue.shade200,
-        DayStatus.sick => Colors.orange.shade200,
-        DayStatus.rescheduled => Colors.purple.shade100,
-        null => null,
-      };
-
   @override
   Widget build(BuildContext context) {
     final c = ref.watch(ctxProvider);
+    final l = context.l10n;
+    final colors = context.colors;
+    final primary = Theme.of(context).colorScheme.primary;
     final month = _month ??= monthStart(c.today);
     final lead = month.weekday - 1;
     final last = monthEnd(month).day;
+    final weekdays = shortWeekdays(context);
 
     Widget cell(int day) {
       final d = DateTime(month.year, month.month, day);
@@ -1996,71 +2688,245 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           log == null &&
           !d.isBefore(c.settings.trackingSince) &&
           needsAnswer(d, c.settings, c.logs, c.holidays);
-      final isToday = d == c.today;
-      return InkWell(
+      final fill = log == null ? null : statusColors(colors, log.status);
+      final border = d == c.today
+          ? Border.all(color: primary, width: 2)
+          : missing
+              ? Border.all(color: colors.qRed, width: 1.5)
+              : null;
+      return GestureDetector(
         onTap: tappable ? () => showAnswerSheet(context, d) : null,
         child: Container(
-          margin: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: _fill(log?.status),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isToday
-                  ? Theme.of(context).colorScheme.primary
-                  : missing
-                      ? Colors.red
-                      : Colors.transparent,
-              width: 2,
-            ),
-          ),
           alignment: Alignment.center,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: fill?.$1, border: border),
           child: Text(
             '$day',
             style: TextStyle(
-              color: holiday ? Colors.red : (isWeekday(d) ? null : Colors.grey),
-              fontWeight: holiday ? FontWeight.bold : null,
+              fontWeight: FontWeight.w600,
+              color: fill?.$2 ?? (holiday ? colors.qRed : (isWeekday(d) ? colors.ink : colors.ink2)),
             ),
           ),
         ),
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    Widget legend(Color color, String label, {bool ring = false}) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: ring ? null : color,
+                border: ring ? Border.all(color: color, width: 1.5) : null,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(fontSize: 11, color: colors.ink2)),
+          ],
+        );
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 110),
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(icon: const Icon(AppIcons.prev), onPressed: () => _shift(-1)),
+            Text(
+              fmtMonth(context, month),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            IconButton(icon: const Icon(AppIcons.next), onPressed: () => _shift(1)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            for (final w in weekdays)
+              Expanded(
+                child: Center(child: Text(w, style: TextStyle(fontSize: 11, color: colors.ink2))),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 7,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          children: [
+            for (var i = 0; i < lead; i++) const SizedBox(),
+            for (var day = 1; day <= last; day++) cell(day),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 14,
+          runSpacing: 8,
+          children: [
+            legend(colors.onOffice, l.answerOffice),
+            legend(colors.onLeave, l.answerLeave),
+            legend(colors.onSick, l.answerSick),
+            if (c.settings.mode == WorkMode.fixed) legend(colors.onMoved, l.answerMove),
+            legend(colors.qRed, l.legendMissing, ring: true),
+          ],
+        ),
+      ],
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Temporary settings screen**
+
+`lib/ui/settings_screen.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../app/providers.dart';
+import '../domain/models.dart';
+import '../l10n/l10n.dart';
+import 'format.dart';
+
+// Temporary. Replaced by the real Settings screen in milestone 3.
+class SettingsScreen extends ConsumerWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(settingsProvider);
+    final notifier = ref.read(settingsProvider.notifier);
+    final l = context.l10n;
+    final weekdays = shortWeekdays(context);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 110),
+      children: [
+        Text(l.tabSettings, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 20),
+        Text(l.language, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        SegmentedButton<AppLanguage>(
+          segments: [
+            ButtonSegment(value: AppLanguage.system, label: Text(l.langSystem)),
+            ButtonSegment(value: AppLanguage.id, label: Text(l.langId)),
+            ButtonSegment(value: AppLanguage.en, label: Text(l.langEn)),
+          ],
+          selected: {s.language},
+          onSelectionChanged: (v) => notifier.update(s.copyWith(language: v.first)),
+        ),
+        const SizedBox(height: 24),
+        SegmentedButton<WorkMode>(
+          segments: [
+            ButtonSegment(value: WorkMode.fixed, label: Text(l.modeFixed)),
+            ButtonSegment(value: WorkMode.quota, label: Text(l.modeQuota)),
+          ],
+          selected: {s.mode},
+          onSelectionChanged: (v) => notifier.update(s.copyWith(mode: v.first)),
+        ),
+        const SizedBox(height: 16),
+        if (s.mode == WorkMode.fixed)
+          Wrap(
+            spacing: 8,
+            children: [
+              for (var d = 1; d <= 5; d++)
+                FilterChip(
+                  label: Text(weekdays[d - 1]),
+                  selected: s.fixedWeekdays.contains(d),
+                  onSelected: (on) {
+                    final next = {...s.fixedWeekdays};
+                    on ? next.add(d) : next.remove(d);
+                    notifier.update(s.copyWith(fixedWeekdays: next));
+                  },
+                ),
+            ],
+          )
+        else ...[
+          SegmentedButton<QuotaPeriod>(
+            segments: [
+              ButtonSegment(value: QuotaPeriod.week, label: Text(l.periodWeek)),
+              ButtonSegment(value: QuotaPeriod.month, label: Text(l.periodMonth)),
+            ],
+            selected: {s.quotaPeriod},
+            onSelectionChanged: (v) => notifier.update(s.copyWith(quotaPeriod: v.first)),
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove),
+                onPressed: s.quota > 1 ? () => notifier.update(s.copyWith(quota: s.quota - 1)) : null,
+              ),
+              Text(l.quotaValue(s.quota)),
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => notifier.update(s.copyWith(quota: s.quota + 1)),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Shell with floating pill nav**
+
+`lib/ui/shell.dart` (replace the stub):
+
+```dart
+import 'package:flutter/material.dart';
+
+import '../l10n/l10n.dart';
+import 'calendar_screen.dart';
+import 'home_screen.dart';
+import 'icons.dart';
+import 'settings_screen.dart';
+import 'widgets.dart';
+
+class Shell extends StatefulWidget {
+  const Shell({super.key});
+
+  @override
+  State<Shell> createState() => _ShellState();
+}
+
+class _ShellState extends State<Shell> {
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return Scaffold(
+      body: Stack(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => _shift(-1)),
-              Text(formatMonth(month), style: Theme.of(context).textTheme.titleMedium),
-              IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => _shift(1)),
-            ],
-          ),
-          Row(
-            children: [
-              for (final w in weekdayShort)
-                Expanded(child: Center(child: Text(w, style: Theme.of(context).textTheme.labelSmall))),
-            ],
-          ),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 7,
-              children: [
-                for (var i = 0; i < lead; i++) const SizedBox(),
-                for (var day = 1; day <= last; day++) cell(day),
-              ],
+          SafeArea(
+            bottom: false,
+            child: IndexedStack(
+              index: _index,
+              children: const [HomeScreen(), CalendarScreen(), SettingsScreen()],
             ),
           ),
-          const Wrap(
-            spacing: 12,
-            children: [
-              Text('Hijau: kantor'),
-              Text('Biru: libur'),
-              Text('Oranye: sakit'),
-              Text('Ungu: reschedule'),
-              Text('Garis merah: belum diisi'),
-            ],
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 0,
+            child: SafeArea(
+              minimum: const EdgeInsets.only(bottom: 16),
+              child: FloatingNav(
+                index: _index,
+                onChanged: (i) => setState(() => _index = i),
+                entries: [
+                  NavEntry(AppIcons.home, AppIcons.homeActive, l.tabHome),
+                  NavEntry(AppIcons.calendar, AppIcons.calendarActive, l.tabCalendar),
+                  NavEntry(AppIcons.settings, AppIcons.settingsActive, l.tabSettings),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -2069,25 +2935,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [ ] **Step 4: Verify and commit**
 
 ```bash
 fvm flutter analyze
 fvm flutter test
+git add lib/ui
+git commit -m "Add calendar, temporary settings screen and floating nav shell"
 ```
 
 Expected: `No issues found!` and all tests pass.
 
-- [ ] **Step 3: Commit Tasks 11 and 12 together**
-
-```bash
-git add lib/ui
-git commit -m "Add Home, calendar and temporary settings sheet"
-```
-
 ---
 
-### Task 13: Manual verification on an Android emulator and wrap-up
+### Task 15: Manual verification on an Android emulator and wrap-up
 
 **Files:**
 - Modify: `docs/superpowers/progress.md`, `docs/superpowers/specs/2026-10-12-flexy-day-design.md` (only if behavior differs from the spec)
@@ -2100,25 +2961,27 @@ fvm flutter emulators --launch <emulator-id>
 fvm flutter run
 ```
 
-If no emulator exists, create one in Android Studio (Device Manager) first. Expected: app launches on the Home tab with no crash.
+If no emulator exists, create one in Android Studio (Device Manager) first. Expected: the app launches on Home with the floating pill nav and no crash.
 
 - [ ] **Step 2: Walk through this checklist**
 
 Mark each result in `progress.md`.
 
-1. Fresh install shows Home, today card, month summary with `Kehadiran: -` when nothing is logged.
-2. Fixed mode (default Mon, Wed, Fri): on a Mon/Wed/Fri the today card has "Jawab". On Tue/Thu it says today is not an office day.
-3. Answer "Ke kantor" with a note. Card shows the answer. Tap "Ubah jawaban", change to "Sakit", save. Summary updates.
-4. Choose "Reschedule". Save is disabled until a target date is picked. Weekends and past dates are not selectable.
-5. After a reschedule, Home shows the next office day including the target. Amend the same day back to "Ke kantor": the target stops counting as an office day.
-6. Calendar: colors match statuses, today has an outline, tap a past weekday with no answer, fill it. The Home banner count drops.
-7. Switch to Kuota in the tune sheet. Reschedule option disappears. The status badge shows green/yellow/red per the Global Constraints. Change the quota number and period and watch the status change.
-8. Kill and reopen the app. Answers and settings persist.
-9. Percent check: with N office days and known leave/sick, compute by hand `office / (weekdays - holidays - leave - sick)` for the current month and compare with Home.
+1. Fresh install shows Home: large weekday, hero card, bento summary with `-` for attendance when nothing is logged.
+2. Fixed mode (default Mon, Wed, Fri) on an office day: the violet hero shows the question and four tiles. Choosing a tile reveals the note field and Save.
+3. Answer "Office" with a note and save. The hero turns mint with "Change answer". Change it to "Sick" through the sheet. The bento counts update.
+4. Choose "Move day". Save stays inactive until a date pill is selected. Weekends, past dates, and holidays are not offered.
+5. After a move, Home shows the next office day including the target. Change the same day back to "Office": the target stops being an office day.
+6. Calendar: circles match statuses, today has a primary ring, a past required day with no answer has a red ring. Tap one, fill it, and the Home banner count drops.
+7. Settings tab: switch to Quota. The "Move day" tile disappears. The quota card shows dots (or a bar above 7) and a green, yellow, or red chip matching the rule in Global Constraints. Change the quota number and period and watch it change.
+8. Language: switch System, Indonesia, English. Every visible string changes, including month and weekday names. With the device in a language other than id or en, System shows English.
+9. Dark mode: switch the emulator to dark. Contrast is readable on hero, tiles, calendar, and status colors.
+10. Kill and reopen the app. Answers, settings, and language persist.
+11. Percent check: for the current month compute by hand `office / (weekdays - holidays - leave - sick)` and compare with Home.
 
 - [ ] **Step 3: Record results and fix gaps**
 
-Update `docs/superpowers/progress.md`: tick milestone 1 tasks, record the Flutter and package versions actually resolved (`fvm flutter --version`, `pubspec.lock`), and list any failures found. Fix real bugs in new commits. If behavior differs from the spec, edit the spec in the same commit and say why.
+Update `docs/superpowers/progress.md`: tick milestone 1 tasks, record the Flutter and package versions actually resolved (`fvm flutter --version`, `pubspec.lock`), the l10n output location, and any failures. Fix real bugs in new commits. If behavior differs from the spec, edit the spec in the same commit and say why.
 
 - [ ] **Step 4: Commit and push the branch**
 

@@ -2,7 +2,7 @@
 
 Android app (Flutter) to plan and track office days (WFO) for hybrid and full-WFO workers. It reminds the user the night before, forces an answer on the day via a persistent notification and a blocking screen, and summarizes attendance per month.
 
-Status: design agreed, no code yet. This file is the spec. Do not add features outside it without asking.
+Status: design agreed. Milestone 1 is coded (see `docs/superpowers/progress.md`). This file is the spec. Do not add features outside it without asking.
 
 ## Scope
 

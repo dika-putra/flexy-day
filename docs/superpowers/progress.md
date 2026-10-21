@@ -1,15 +1,15 @@
 # Flexy Day Progress
 
-Single place to see where the project stands. Update this file in the same commit as the work it describes. Step-level checkboxes live in each plan file.
+Single place to see where the project stands. Update this file in the same commit as the work it describes. Task-level status lives here. The step checkboxes inside the plan file are not maintained, so ignore them.
 
-Last updated: 2026-10-12 (checkpoint C done: tasks 1 to 14; task 15 blocked on Android SDK)
+Last updated: 2026-10-21 (checkpoint C done: tasks 1 to 14; task 15 blocked on Android SDK; no code changes since 2026-10-12)
 
 ## Milestones
 
 | # | Milestone | Status | Plan |
 |---|-----------|--------|------|
 | 0 | Design spec | Done | [spec](specs/2026-10-12-flexy-day-design.md) |
-| 1 | Domain, database, Home, calendar, amend | Not started | [plan](plans/2026-10-12-milestone-1-domain-and-home.md) |
+| 1 | Domain, database, Home, calendar, amend | In progress (tasks 1 to 14 done, 15 blocked) | [plan](plans/2026-10-12-milestone-1-domain-and-home.md) |
 | 2 | Notifications, blocking screen, permissions | Not planned | write after milestone 1 |
 | 3 | Onboarding, settings, holiday management, polish | Not planned | write after milestone 2 |
 
@@ -47,13 +47,14 @@ Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 
 - 2026-10-12: Milestone 1 adds `trackingSince` to settings so "unanswered" has a start date. The spec is updated to match.
 - 2026-10-12: UI direction approved from mockups: primary violet `#6E56F8`, pastel status colors, hero card, bento summary, calendar circles, floating pill nav. Phosphor icons, Plus Jakarta Sans font.
 - 2026-10-12: Two languages (English, Indonesian) via ARB and gen-l10n. Language is a setting (system, id, en). All strings live in ARB files.
+- 2026-10-12: Icons use `phosphoricons_flutter`, not the official `phosphor_flutter`, because the official package does not compile on Flutter 3.47.0.
 - 2026-10-12: Blocking screen design approved from mockups (milestone 2): full-screen color wash, large question, answer tiles, reschedule date strip. In quota mode the wash follows the quota status. The notification has no answer buttons.
 
 ## Open items (verify before relying on them)
 
 - Application id `com.dienn.flexyday`: confirmed by the user on 2026-10-12. Dart package name is `flexyday`. Cannot change after release.
 - Play Store name availability for "Flexy Day": the user says they checked, not recorded here.
-- Resolved on 2026-10-12: Flutter 3.47.0 (Dart 3.13.0), pinned with FVM (`.fvmrc`). `flutter_riverpod` ^3.4.3, `drift` ^2.35.2, `drift_flutter` ^0.3.1, `shared_preferences` ^2.5.6, `intl` ^0.20.3, `phosphor_flutter` ^2.1.0, dev: `drift_dev` ^2.35.1, `build_runner` ^2.16.2.
+- Resolved on 2026-10-12: Flutter 3.47.0 (Dart 3.13.0), pinned with FVM (`.fvmrc`). `flutter_riverpod` ^3.4.3, `drift` ^2.35.2, `drift_flutter` ^0.3.1, `shared_preferences` ^2.5.6, `intl` ^0.20.3, `phosphoricons_flutter` ^1.1.1 (see Icons below), dev: `drift_dev` ^2.35.1, `build_runner` ^2.16.2.
 - `sqlite3_flutter_libs` resolves to `0.6.0+eol`: checked in its CHANGELOG (2026-10-12). It is an intentionally empty stub because `sqlite3` 3.x bundles SQLite through build hooks. No action needed.
 - Riverpod 3.x: verified with a provider smoke test and widget tests (2026-10-12). No API problems found.
 - Font: only a variable font exists in google/fonts (`PlusJakartaSans[wght].ttf`, 176 KB, OFL 1.1, downloaded 2026-10-12 into `assets/fonts/`). Whether Flutter maps `FontWeight` to the `wght` axis automatically is unverified. Check in Task 15; if not, use `fontVariations`.
@@ -61,6 +62,17 @@ Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 
 - Holiday data: `assets/holidays/holidays.json` is an empty array. It needs real national holidays and collective leave from the official decree, current and next year.
 - Notification reboot behavior, exact alarm permission, and Android 14+ full-screen intent limits: unverified. Check in milestone 2 against the pinned plugin version.
 - Generated drift files (`*.g.dart`) are not committed. After a fresh clone run `fvm dart run build_runner build --delete-conflicting-outputs`.
+
+## Deviations from the milestone 1 plan
+
+The plan file was patched where the text was wrong, but these differences from its literal steps remain:
+
+- Font: a single variable font file (`assets/fonts/PlusJakartaSans.ttf`) is declared once, not three static weight files. Google Fonts offers only the variable file.
+- Icons: `phosphoricons_flutter` instead of `phosphor_flutter` (plan patched).
+- `lib/l10n/l10n.dart`: `AppLocalizations.of(this)!` (the plan had `context`, which does not compile; plan patched).
+- `.gitignore`: `flutter create` did not write a full one. The repo now has a standard Flutter one, plus `*.g.dart` and `.fvm/`.
+- Extra tests not in the plan: `test/app/providers_test.dart`, `test/app/app_test.dart`, `test/ui/answer_panel_test.dart`, `test/ui/home_screen_test.dart`. Total 48 tests.
+- Git history: the scaffold commit once included `.idea/`, `.dart_tool/` and `build/`. The branch was rebuilt before the first push of that code, so the pushed history does not contain them. A local branch `milestone-1-old` still has them (not pushed).
 
 ## Blockers
 

@@ -2,7 +2,7 @@
 
 Single place to see where the project stands. Update this file in the same commit as the work it describes. Task-level status lives here. The step checkboxes inside the plan file are not maintained, so ignore them.
 
-Last updated: 2026-10-21 (checkpoint C done: tasks 1 to 14; task 15 blocked on Android SDK; no code changes since 2026-10-12)
+Last updated: 2026-10-22 (checkpoint C done: tasks 1 to 14; task 15 blocked on Android SDK; no code changes since 2026-10-12)
 
 ## Milestones
 
@@ -63,6 +63,25 @@ Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 
 - Notification reboot behavior, exact alarm permission, and Android 14+ full-screen intent limits: unverified. Check in milestone 2 against the pinned plugin version.
 - Generated drift files (`*.g.dart`) are not committed. After a fresh clone run `fvm dart run build_runner build --delete-conflicting-outputs`.
 
+## Where things live
+
+- Branch `milestone-1` on GitHub has everything: code, tests, spec, plan, this file. It is 0 commits ahead of or behind `origin/milestone-1`.
+- Default branch `main` still holds the 2026-10-12 docs only: the old plan, the old progress file, the "Design only" README, and no code. No pull request exists yet.
+- Plan for `main`: open a PR from `milestone-1` after Task 15 passes on an emulator, so `main` only gets code that has run on Android. Before the PR: grill step, pre-PR review, docs check, then wait for the owner's ok.
+
+## Pending decisions and next steps
+
+| # | Item | Owner | Status |
+|---|------|-------|--------|
+| 1 | Install the Android SDK and create an emulator in Android Studio (Device Manager), then run Task 15 | Owner | Waiting |
+| 2 | After the SDK: real `flutter build apk --debug`, then `flutter run`, then the Task 15 checklist | Claude, with the owner viewing the screen | Blocked by 1 |
+| 3 | Merge timing: PR `milestone-1` to `main` after Task 15 (recommended) or earlier | Owner | Open |
+| 4 | Author name on the six scaffold-era commits is `Novian Mahardika Putra`, newer commits are `Dika Putra` (same personal email). Fixing it means rewriting public history | Owner | Open, not touched |
+| 5 | Delete local branch `milestone-1-old` (holds the commits with `.idea/` and `build/`, never pushed) | Owner | Open, needs the owner's ok |
+| 6 | Move dev setup (FVM, `build_runner`, `ANDROID_HOME`) from this file into the README | Owner | Open |
+| 7 | Write the milestone 2 plan (notifications, blocking screen, permissions) | Claude | Waiting for the owner to say go |
+| 8 | Fill `assets/holidays/holidays.json` from the official decree | Owner and Claude | Not started |
+
 ## Deviations from the milestone 1 plan
 
 The plan file was patched where the text was wrong, but these differences from its literal steps remain:
@@ -87,4 +106,6 @@ The plan file was patched where the text was wrong, but these differences from i
 
 ## Log
 
+- 2026-10-22: Checked that docs and code are pushed to `milestone-1`. Added the "Where things live" and "Pending decisions and next steps" sections.
+- 2026-10-21: Audited the docs against the repo. Fixed the stale README and spec status, the milestone table, the icon package version, and the claim about plan checkboxes. Added the deviations section.
 - 2026-10-12: Spec written, repo made public, milestone 1 plan written, then revised for design direction and two languages (now 15 tasks). Branch `milestone-1` created. Checkpoint A done: scaffold, domain logic. Checkpoint B done: database, repositories, settings. Checkpoint C done: strings, theme, providers, UI, 48 tests passing. Task 15 (emulator) blocked: Android SDK not installed.

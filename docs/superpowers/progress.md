@@ -4,6 +4,24 @@ Single place to see where the project stands. Update this file in the same commi
 
 Last updated: 2026-10-22 (checkpoint C done: tasks 1 to 14; task 15 blocked on Android SDK; no code changes since 2026-10-12)
 
+## Resume here (for a new session)
+
+1. `cd ~/Documents/Projects/flexy-day`, `git checkout milestone-1`, `git pull`.
+2. The remote is GitHub, so use `gh`. Run `gh auth status` first. The active account must be `dika-putra` (`gh auth switch --user dika-putra` if not). It has flipped back on its own before.
+3. Setup. Verified on a fresh clone on 2026-10-22: 48 tests pass and analyze is clean.
+   - `fvm flutter pub get`
+   - `fvm dart run build_runner build --delete-conflicting-outputs`
+   - `fvm flutter test`
+4. Android needs the SDK installed first (see Blockers). Then in each shell: `export ANDROID_HOME="$HOME/Library/Android/sdk"` and add `$ANDROID_HOME/emulator` and `$ANDROID_HOME/platform-tools` to `PATH`.
+5. How the work was run: the `superpowers:executing-plans` skill, inline, tests first, with checkpoints (A to D above). Code for each task comes from the plan file. Stop at blockers and report.
+6. Owner rules: commit messages in English with no AI attribution line, never change git `user.name` or `user.email`, ask before a force push, deleting a branch, or rewriting history, no new doc files unless asked, chat in Indonesian. A PR needs the grill step, the pre-PR review, the docs check, and the owner's ok.
+7. Lessons from milestone 1:
+   - `flutter analyze` does not report compile errors inside third-party packages. Run the tests or a build.
+   - ICU messages in ARB files must not contain an apostrophe.
+   - `AppLocalizations.of(this)!` inside the `BuildContext` extension.
+   - `/tmp` helper scripts used during the session are gone. The plan file is the source of the code.
+8. Next actions are in "Pending decisions and next steps" below.
+
 ## Milestones
 
 | # | Milestone | Status | Plan |
@@ -82,6 +100,21 @@ Checkpoints for inline execution: A = tasks 1 to 5, B = tasks 6 to 8, C = tasks 
 | 7 | Write the milestone 2 plan (notifications, blocking screen, permissions) | Claude | Waiting for the owner to say go |
 | 8 | Fill `assets/holidays/holidays.json` from the official decree | Owner and Claude | Not started |
 
+## Milestone 2 inputs (from the approved blocking mockup)
+
+The mockups were only shown in chat and are not saved as files. The spec ("Blocking screen" and "Visual design") holds the rules. These details are not in the spec or in the ARB files yet:
+
+- Layout: full-screen color wash, a chip with the trigger time, the date, the large question, the same `AnswerPanel` with `onHero: true`, then the footer line. No close button.
+- Wash colors: violet `#6E56F8` when the quota status is green or the mode is fixed, amber `#F5B301` with dark text when yellow, red `#F0476A` with white text when red.
+- Fixed mode shows four tiles (office, move, leave, sick) and the date strip after choosing move. Quota mode shows the progress dots, the status line, and three tiles.
+- Notification: persistent, repeats every 30 minutes until answered, tap opens the blocking screen, no action buttons.
+- Copy to add to both ARB files (id / en):
+  - chip: "08:00 · Cek harian" / "08:00 · Daily check-in" (time comes from the setting)
+  - notification title: "Ngantor hari ini?" / "Going to the office today?" (same as the existing `question` key)
+  - notification body: "Jawab dulu biar jadwalmu rapi." / "Answer first to keep your schedule tidy."
+  - footer: "Isi dulu ya, biar jadwalmu rapi." / "Quick answer first, keeps your schedule tidy."
+- Reuse existing keys: `moveTo`, `noteHint`, `save`, `quotaRed`, `quotaStats`, `quotaProgress`.
+
 ## Deviations from the milestone 1 plan
 
 The plan file was patched where the text was wrong, but these differences from its literal steps remain:
@@ -106,6 +139,7 @@ The plan file was patched where the text was wrong, but these differences from i
 
 ## Log
 
+- 2026-10-22: Added "Resume here" and "Milestone 2 inputs" so another session can continue. Checked the setup on a fresh clone.
 - 2026-10-22: Checked that docs and code are pushed to `milestone-1`. Added the "Where things live" and "Pending decisions and next steps" sections.
 - 2026-10-21: Audited the docs against the repo. Fixed the stale README and spec status, the milestone table, the icon package version, and the claim about plan checkboxes. Added the deviations section.
 - 2026-10-12: Spec written, repo made public, milestone 1 plan written, then revised for design direction and two languages (now 15 tasks). Branch `milestone-1` created. Checkpoint A done: scaffold, domain logic. Checkpoint B done: database, repositories, settings. Checkpoint C done: strings, theme, providers, UI, 48 tests passing. Task 15 (emulator) blocked: Android SDK not installed.
